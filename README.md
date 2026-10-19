@@ -17,3 +17,5 @@ Sitio: https://detective-servidores.vercel.app
 
     pip install pgmpy matplotlib networkx
     python red_bayesiana_bd.py
+
+Cada cambio que se sube a la rama `main` se publica solo en Vercel.
