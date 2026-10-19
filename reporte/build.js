@@ -122,7 +122,7 @@ const portada = [
   cover("Oscar Gómez Vásquez", 24, false, 40),
   cover("Said Rosas Vera", 24, false, 40),
   cover("Brayan Apolinar Ávila", 24, false, 400),
-  cover("Grupo: ____________", 24, false, 40),
+  cover("Grupo: 9J1B", 24, false, 40),
   cover("Docente: Sergio Ríos González", 24, false, 40),
   cover("Fecha: 25 de septiembre de 2026", 24, false, 400),
   cover("Veracruz, Ver.", 24, false, 0),
@@ -210,8 +210,6 @@ c.push(space(80));
 c.push(P("**No se incluyeron:** disco → procesador (con un disco lento el procesador se queda esperando, trabaja menos) ni red → sistema lento (si la red falla, la gente ni siquiera llega al servidor)."));
 
 c.push(H1("7. Probabilidades"));
-c.push(box(["**Nota: Las probabilidades utilizadas son hipotéticas y se emplean únicamente con fines académicos.**"]));
-c.push(space(80));
 c.push(P("Se usó la **Opción B (datos hipotéticos)** porque no tenemos registros reales de fallas. Los valores reflejan qué tan seguido ocurre cada problema en un servidor típico. Estas son las **probabilidades a priori**, es decir, antes de ver cualquier pista:", { after: 80 }));
 c.push(table(["Causa", "P(Sí)", "P(No)", "De dónde sale"], [
   ["Muchos usuarios a la vez", "0.25", "0.75", "Unas 6 horas pico de 24 al día (≈ 25 %)."],
