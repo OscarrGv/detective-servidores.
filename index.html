@@ -312,36 +312,43 @@ pre.cmd { background: var(--paper-2); border: 1px solid var(--hair); border-radi
 .fnote { font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--hair); padding-left: 10px; }
 
 
-/* ---------- transparencia: cuentas paso a paso ---------- */
-.how { margin-top: 12px; border: 1.5px solid var(--rule); border-radius: var(--r); background: var(--paper); }
-.how summary { cursor: pointer; font-weight: 700; padding: 8px 12px; }
-.how-steps { margin: 0; padding: 2px 14px 12px 34px; display: grid; gap: 12px; font-size: 14.5px; }
-.how-steps .hd { display: block; }
-.combo { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+/* ---------- explicaciones (secciones 04 y 05) ---------- */
+.calc, .more { margin-top: 10px; border: 1.5px solid var(--hair); border-radius: var(--r); background: var(--paper); }
+.calc > summary, .more > summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--accent); padding: 7px 12px; list-style-position: inside; }
+.calc[open] > summary, .more[open] > summary { border-bottom: 1px dashed var(--hair); }
+.bx { padding: 10px 12px 12px; display: grid; gap: 10px; font-size: 14px; }
+.bx p { margin: 0; }
+.ba { display: grid; grid-template-columns: 62px minmax(0, 1fr) 62px; gap: 4px 8px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.ba .tr { height: 10px; background: var(--paper-2); border: 1px solid var(--hair); position: relative; }
+.ba .tr i { position: absolute; inset: 0 auto 0 0; }
+.ba b { font-family: var(--f-mono); color: var(--ink); text-align: right; }
+.formula { font-family: var(--f-mono); font-size: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; padding: 8px; background: var(--paper-2); border: 1px solid var(--hair); }
+.fr { display: inline-grid; text-align: center; }
+.fr span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 6px 2px; }
+.fr span:last-child { padding-top: 2px; }
+.legend { font-size: 13px; color: var(--muted); text-align: center; }
+table.ing { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.ing td { padding: 6px 6px; border-bottom: 1px dashed var(--hair); vertical-align: top; }
+table.ing td.sym { font-family: var(--f-mono); font-weight: 600; white-space: nowrap; color: var(--accent); }
+table.ing td.v { font-family: var(--f-mono); font-weight: 600; text-align: right; white-space: nowrap; }
+table.ing small { color: var(--muted); display: block; }
+.subst { font-family: var(--f-mono); font-size: 13.5px; background: var(--mark); color: var(--mark-ink); padding: 7px 10px; overflow-wrap: anywhere; }
+.plain { line-height: 1.5; }
+.see { font-size: 13px; color: var(--muted); }
+.combo { display: flex; flex-wrap: wrap; gap: 6px; }
 .fx { display: inline-grid; grid-template-columns: auto auto; column-gap: 10px; align-items: baseline; border: 1px solid var(--hair); background: var(--paper-2); border-radius: 2px; padding: 3px 8px; font-size: 12.5px; }
-.fx b { font-weight: 700; }
 .fx small { grid-column: 1; color: var(--muted); font-size: 11.5px; }
 .fx i { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-family: var(--f-mono); font-weight: 600; align-self: center; }
-.ops { font-family: var(--f-mono); font-size: 12.8px; line-height: 1.55; background: var(--paper-2); border: 1px solid var(--hair); padding: 8px 10px; margin-top: 8px; display: grid; gap: 2px; overflow-wrap: anywhere; }
-.ops .lbl { font-family: var(--f-body); font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); }
-.ops .txt { font-family: var(--f-body); font-size: 13.5px; }
-.ops .why-ratio { font-family: var(--f-body); font-size: 13.5px; margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--hair); }
-.calc { margin-top: 8px; }
-.calc summary { cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--accent); padding: 2px 0; }
-.count-body { align-items: start; grid-template-columns: minmax(0, 1fr); }
-.count-body .waffle { max-width: 170px; }
-.tree { display: grid; gap: 8px; font-size: 13.5px; }
-.t-root { text-align: center; font-weight: 700; border: 1.5px solid var(--rule); padding: 6px; background: var(--paper-2); }
-.t-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
-.t-node { border: 1.5px solid var(--hair); border-left-width: 5px; padding: 6px 8px; display: grid; gap: 1px; min-width: 0; }
-.t-node small { color: var(--muted); font-size: 12px; line-height: 1.3; }
-.t-node b { font-family: var(--f-mono); font-size: 17px; }
-.t-node span { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
-.t-node.hit { background: var(--mark); }
-.t-res { border: 1.5px solid var(--rule); padding: 8px 10px; }
-.count-text .bayes { font-family: var(--f-mono); font-size: 12.8px; line-height: 1.55; background: var(--paper-2); border: 1px solid var(--hair); padding: 8px 10px; margin: 10px 0 8px; overflow-wrap: anywhere; }
-.count-text .bayes b.l { font-family: var(--f-body); font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); display: block; }
-.count-text .small { color: var(--muted); font-size: 13.5px; }
+.ops { font-family: var(--f-mono); font-size: 12.8px; background: var(--paper-2); border: 1px solid var(--hair); padding: 7px 10px; overflow-wrap: anywhere; }
+.count-body { align-items: center; grid-template-columns: minmax(110px, 150px) minmax(0, 1fr); }
+@media (max-width: 520px) { .count-body { grid-template-columns: minmax(0, 1fr); } }
+.count-text .sum { font-size: 15px; }
+.count-text .small { color: var(--muted); font-size: 13px; }
+ol.steps5 { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+ol.steps5 li p { margin: 0 0 3px; }
+table.map { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.map td { padding: 6px; border-bottom: 1px dashed var(--hair); vertical-align: top; }
+table.map td:first-child { font-family: var(--f-mono); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -431,6 +438,7 @@ pre.cmd { background: var(--paper-2); border: 1px solid var(--hair); border-radi
         <div class="waffle" id="waffle" aria-hidden="true"></div>
         <div class="count-text" id="countText"></div>
       </div>
+      <div id="countMore"></div>
     </section>
 
     <section class="panel detail" id="detalle" aria-label="Detalle">
@@ -926,11 +934,20 @@ function renderVerdict() {
   $("#action").innerHTML = `<b>Qué conviene revisar primero:</b> ${N[top].act}`;
 }
 
-// ---- utilidades para mostrar las cuentas ----
+// ---- utilidades para explicar las cuentas ----
 const pc1 = (x) => (x * 100).toFixed(1) + " %";
-const pEv = (e) => infer(e).pe;                       // probabilidad de que pase todo lo que hay en e
+const pEv = (e) => infer(e).pe;                        // probabilidad de que pase todo lo que hay en e
 const evName = (k, e = ev) => `«${N[k].short} = ${e[k] ? "Sí" : "No"}»`;
-function topCombo(e) {                                 // el escenario completo más probable que coincide con e
+const marked = () => Object.keys(ev).map((k) => evName(k)).join(", ");
+// Los tres ingredientes del Teorema de Bayes para una causa A, con B = todo lo que se marcó
+function bayesOf(c) {
+  const pA = infer({}).post[c];
+  const pBA = pEv({ ...ev, [c]: 1 }) / pA;
+  const pBnA = pEv({ ...ev, [c]: 0 }) / (1 - pA);
+  const pB = pe;
+  return { pA, pBA, pBnA, pB, post: pBA * pA / pB, f: pBA / pB };
+}
+function topCombo(e) {
   let best = -1, arr = null; const a = new Array(9);
   for (let m = 0; m < 512; m++) {
     for (let i = 0; i < 9; i++) a[i] = (m >> (8 - i)) & 1;
@@ -940,50 +957,36 @@ function topCombo(e) {                                 // el escenario completo 
   }
   return { p: best, a: arr };
 }
-function factor(v, a) {                                // el número de la tabla que aporta cada variable
+function factor(v, a) {
   const val = a[IDX[v]], q = pSi(v, a), f = val ? q : 1 - q, par = PADRES[v] || [];
   const cond = par.length ? "si " + par.map((p) => `${N[p].short.toLowerCase()}: ${a[IDX[p]] ? "Sí" : "No"}`).join(", ") : "probabilidad inicial";
   return { f, html: `<span class="fx"><b>${N[v].short}: ${val ? "Sí" : "No"}</b><small>${cond}</small><i>${f.toFixed(2)}</i></span>` };
 }
-function stepInfo() {                                  // ¿el último paso solo agregó pistas?
-  const added = Object.keys(evCur).filter((k) => evPrev[k] === undefined);
-  const isAdd = pPrevKey === pCurKey && added.length > 0 && Object.keys(evPrev).every((k) => evCur[k] === evPrev[k]);
-  return { added, isAdd };
-}
+const FORMULA = `<div class="formula"><span>P(A | B) =</span><span class="fr"><span>P(B | A) × P(A)</span><span>P(B)</span></span></div>`;
 
 function renderWhy() {
   const keys = Object.keys(ev), lead = $("#whyLead"), list = $("#whyList");
   list.innerHTML = "";
-  const base = infer({}).post;
-  const st = stepInfo();
-  const top = ranking()[0];
-  const nKeep = 512 / Math.pow(2, keys.length);
-  const tc = topCombo(ev), facs = ORDEN.map((v) => factor(v, tc.a));
-  let leadHtml;
+  const base = infer({}).post, top = ranking()[0];
   if (!keys.length) {
-    leadHtml = `<p class="lead-why">Aún no marcas ninguna pista. Lo que ves son las <b>probabilidades iniciales</b> (sección 7 del reporte): qué tan común es cada causa en general. «${N[top].short}» va al frente solo porque es la más frecuente. Marca una pista en «Lo que ves» o elige una consulta C1–C7 y aquí aparecerá la cuenta completa.</p>`;
-  } else {
-    const paso = st.isAdd ? `<b>Último paso:</b> marcaste ${st.added.map((k) => evName(k)).join(" y ")}. ` : `<b>Último paso:</b> cambiaste las pistas o los supuestos. `;
-    leadHtml = `<p class="lead-why">${paso}Con todo lo que marcaste (${keys.map((k) => evName(k)).join(", ")}), la red apunta a <b>${N[top].name.toLowerCase()}</b> con ${fmt(curPost[top])}. Abajo está la cuenta de cada causa, con los números reales.</p>`;
-  }
-  leadHtml += `<details class="how" ${keys.length ? "open" : ""}><summary>Cómo hace la cuenta la red, paso a paso</summary><ol class="how-steps">
-    <li><b class="hd">Se imaginan todos los escenarios posibles.</b> Hay 9 variables y cada una puede ser Sí o No, así que existen 2 × 2 × … × 2 = 2⁹ = 512 escenarios. La probabilidad de un escenario se obtiene <b>multiplicando 9 números</b> de las tablas del reporte (sección 8), uno por variable. Por ejemplo, el escenario más probable ${keys.length ? "que coincide con tus pistas" : ""} es:
-      <div class="combo">${facs.map((f) => f.html).join("")}</div>
-      <div class="ops"><div>${facs.map((f) => f.f.toFixed(2)).join(" × ")}</div><div>= <b>${tc.p.toFixed(5)}</b></div></div></li>
-    <li><b class="hd">Se quedan solo los escenarios que coinciden con lo que ves.</b> ${keys.length ? `Con ${keys.length} ${keys.length === 1 ? "dato marcado" : "datos marcados"} quedan ${nKeep} de los 512 escenarios. Al sumar sus probabilidades sale qué tan común es ver justo lo que marcaste:` : "Como no hay pistas, se quedan los 512 y suman 1 (100 %)."}
-      ${keys.length ? `<div class="ops"><div>P(pistas) = suma de los ${nKeep} escenarios = <b>${pe.toFixed(4)}</b></div><div class="txt">O sea, lo que marcaste pasa en ${pc1(pe)} de los momentos.</div></div>` : ""}</li>
-    <li><b class="hd">Se ve qué parte de esos escenarios tiene cada causa.</b> Se suman solo los escenarios donde la causa está presente y se divide entre el total del paso 2:
-      <div class="ops"><div>P(causa | pistas) = P(causa y pistas) ÷ P(pistas)</div></div>
-      Esa división es el <b>Teorema de Bayes</b>. Es lo mismo que hace la función <code>calcular_a_mano()</code> del programa y lo que se comprobó a mano en la sección 9 del reporte.</li>
-  </ol></details>`;
-  lead.innerHTML = leadHtml;
-  if (!keys.length) {
+    lead.innerHTML = `<p class="lead-why">Aún no marcas ninguna pista. Lo que ves son las <b>probabilidades iniciales</b> (sección 7 del reporte): qué tan común es cada causa en general. «${N[top].short}» va al frente solo porque es la más frecuente. Marca una pista en «Lo que ves» o elige una consulta C1–C7.</p>`;
     CAUSAS.forEach((c) => list.appendChild(whyItem(c, `${N[c].short}: ${fmt(base[c])}`, N[c].prior, [], null, "")));
     return;
   }
+  const tc = topCombo(ev), facs = ORDEN.map((v) => factor(v, tc.a)), nKeep = 512 / Math.pow(2, keys.length);
+  lead.innerHTML = `<p class="lead-why">Con lo que marcaste (${marked()}), la red apunta a <b>${N[top].name.toLowerCase()}</b> con ${fmt(curPost[top])}. Cada causa de abajo dice de cuánto a cuánto cambió y por qué. Si quieres ver la operación, abre <b>«Ver la cuenta»</b> en la causa que te interese.</p>
+    <details class="more"><summary>¿De dónde saca la red los números de las cuentas?</summary><div class="bx">
+      <p>Cada cuenta usa tres datos: P(A), P(B | A) y P(B). El primero sale directo de la sección 7 del reporte. Los otros dos la red los calcula con las tablas de la sección 8, así:</p>
+      <p><b>1. Imagina un momento cualquiera del servidor.</b> En ese momento cada una de las 9 variables está en Sí o en No. Hay 2⁹ = 512 momentos distintos posibles.</p>
+      <p><b>2. Qué tan probable es un momento</b> = multiplicar un número de las tablas por cada variable. Por ejemplo, el momento más probable que coincide con lo que marcaste es este:</p>
+      <div class="combo">${facs.map((f) => f.html).join("")}</div>
+      <div class="ops">${facs.map((f) => f.f.toFixed(2)).join(" × ")} = ${tc.p.toFixed(5)}</div>
+      <p><b>3. Se suman los momentos que importan.</b> De los 512, en ${nKeep} pasa justo lo que marcaste. Al sumarlos sale <b>P(B) = ${pe.toFixed(4)}</b>. Si solo se suman los que además tienen la causa, y se divide entre P(A), sale <b>P(B | A)</b>.</p>
+      <p class="see">Es lo mismo que hace la función <code>calcular_a_mano()</code> del programa.</p>
+    </div></details>`;
   const without = {}; keys.forEach((k) => { const e2 = { ...ev }; delete e2[k]; without[k] = infer(e2).post; });
   const order = [...CAUSAS].sort((a, b) => Math.abs(curPost[b] - base[b]) - Math.abs(curPost[a] - base[a]));
-  order.forEach((c, idx) => {
+  order.forEach((c) => {
     if (ev[c] !== undefined) { list.appendChild(whyItem(c, `${N[c].short}: la fijaste en «${ev[c] ? "Sí" : "No"}»`, "Es un supuesto tuyo, así que la red no la calcula: la usa para recalcular todo lo demás.", [], null, "")); return; }
     const d0 = curPost[c] - base[c];
     const contrib = keys.filter((k) => k !== c).map((k) => ({ k, d: curPost[c] - without[k][c] })).sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
@@ -1010,79 +1013,77 @@ function renderWhy() {
         } else text = `Se movió principalmente por ${evName(main.k)}.`;
       } else text = "Cambió por la combinación de varias pistas a la vez.";
     }
-    list.appendChild(whyItem(c, title, text, contrib.filter((x) => Math.abs(x.d) >= .0005).slice(0, 4), tag, calcFor(c, st), idx === 0));
+    list.appendChild(whyItem(c, title, text, contrib.filter((x) => Math.abs(x.d) >= .0005).slice(0, 4), tag, calcFor(c)));
   });
 }
-// la operación completa de una causa
-function calcFor(c, st) {
-  const nm = N[c].short, pcE = pEv({ ...ev, [c]: 1 });
-  let h = "";
-  if (st.isAdd) {
-    const p0 = infer(evPrev).post[c];
-    const a = pEv({ ...evCur, [c]: 1 }) / pEv({ ...evPrev, [c]: 1 });
-    const b = pEv({ ...evCur, [c]: 0 }) / pEv({ ...evPrev, [c]: 0 });
-    const num = p0 * a, den = num + (1 - p0) * b, r = a / b;
-    const what = st.added.length === 1 ? evName(st.added[0]) : "lo nuevo que marcaste";
-    const ratio = Math.abs(r - 1) < .01
-      ? `Con o sin esta causa, ${what} es igual de probable. Por eso <b>no cambia</b>.`
-      : r > 1 ? `Con esta causa presente, ${what} es <b>${r.toFixed(1)} veces más probable</b> que sin ella. Por eso <b>sube</b>.`
-              : `Sin esta causa, ${what} es <b>${(1 / r).toFixed(1)} veces más probable</b> que con ella. Por eso <b>baja</b>.`;
-    h += `<div class="ops"><div class="lbl">Último paso (Bayes)</div>
-      <div class="txt">Antes de este paso, «${nm}» tenía <b>${pc1(p0)}</b>.</div>
-      <div class="txt">Si «${nm}» está presente, ${what} aparece ${pc1(a)} de las veces; si no está, ${pc1(b)}.</div>
-      <div>${p0.toFixed(3)} × ${a.toFixed(3)} ÷ (${p0.toFixed(3)} × ${a.toFixed(3)} + ${(1 - p0).toFixed(3)} × ${b.toFixed(3)})</div>
-      <div>= ${num.toFixed(4)} ÷ ${den.toFixed(4)} = <b>${pc1(num / den)}</b></div>
-      <div class="why-ratio">${ratio}</div></div>`;
-  }
-  h += `<div class="ops"><div class="lbl">La cuenta desde cero</div>
-    <div>P(${nm} | pistas) = P(${nm} y pistas) ÷ P(pistas)</div>
-    <div>= ${pcE.toFixed(4)} ÷ ${pe.toFixed(4)} = <b>${pc1(pcE / pe)}</b></div>
-    <div class="txt">El ${pc1(pcE / pe)} es la parte de los escenarios con tus pistas en los que «${nm}» está presente.</div></div>`;
-  return h;
+// La cuenta de una causa, con la fórmula original del Teorema de Bayes
+function calcFor(c) {
+  const b = bayesOf(c), nm = N[c].short, col = `var(${N[c].color})`;
+  let plain;
+  if (Math.abs(b.f - 1) < .01) plain = `Lo que marcaste pasa igual de seguido con «${nm}» (${pc1(b.pBA)}) que en general (${pc1(b.pB)}). No dice nada sobre esta causa, así que se queda en ${pc1(b.pA)}.`;
+  else if (b.f > 1) plain = `Cuando hay «${nm}», lo que marcaste pasa ${pc1(b.pBA)} de las veces; en general, solo ${pc1(b.pB)}. Es decir, es <b>${b.f.toFixed(1)} veces más común con esta causa</b>. Por eso la sospecha se multiplica por ese número: ${pc1(b.pA)} × ${b.f.toFixed(2)} = <b>${pc1(b.post)}</b>.`;
+  else plain = `Cuando hay «${nm}», lo que marcaste pasa solo ${pc1(b.pBA)} de las veces, contra ${pc1(b.pB)} en general. Con esta causa, lo que ves sería <b>menos común</b>, así que la sospecha se reduce: ${pc1(b.pA)} × ${b.f.toFixed(2)} = <b>${pc1(b.post)}</b>.`;
+  return `<div class="bx">
+    <div class="ba"><span>Antes</span><div class="tr"><i style="width:${(b.pA * 100).toFixed(1)}%;background:${col};opacity:.45"></i></div><b>${pc1(b.pA)}</b>
+      <span>Después</span><div class="tr"><i style="width:${(b.post * 100).toFixed(1)}%;background:${col}"></i></div><b>${pc1(b.post)}</b></div>
+    ${FORMULA}
+    <p class="legend">A = «${nm}» · B = lo que marcaste</p>
+    <table class="ing"><tbody>
+      <tr><td class="sym">P(A)</td><td>Qué tan común es «${nm}» antes de ver pistas<small>probabilidad inicial, sección 7 del reporte</small></td><td class="v">${pc1(b.pA)}</td></tr>
+      <tr><td class="sym">P(B | A)</td><td>Si «${nm}» está presente, qué tan seguido pasa justo lo que marcaste</td><td class="v">${pc1(b.pBA)}</td></tr>
+      <tr><td class="sym">P(B)</td><td>Qué tan seguido pasa lo que marcaste en general, con o sin esta causa</td><td class="v">${pc1(b.pB)}</td></tr>
+    </tbody></table>
+    <div class="subst">P(A | B) = ${b.pBA.toFixed(3)} × ${b.pA.toFixed(3)} ÷ ${b.pB.toFixed(4)} = <b>${pc1(b.post)}</b></div>
+    <p class="plain"><b>En palabras:</b> ${plain}</p>
+    <p class="see">En la sección 05 está esta misma cuenta hecha con 10,000 momentos imaginarios.</p>
+  </div>`;
 }
-function whyItem(c, title, text, contrib, tag, calc, open) {
+function whyItem(c, title, text, contrib, tag, calc) {
   const d = document.createElement("div"); d.className = "why-item";
   d.innerHTML = `<div class="stripe" style="background:var(${N[c].color})"></div><div><h3>${title}</h3><p>${text}</p>
     ${tag ? `<span class="tag">${tag}</span>` : ""}
     ${contrib.length ? `<div class="contrib">${contrib.map((x) => `<span class="pill ${x.d > 0 ? "up" : "down"}" title="Cuánto cambia si quitas esa pista">${N[x.k].short} = ${ev[x.k] ? "Sí" : "No"}: <span class="mono">${pts(x.d)}</span> pts</span>`).join("")}</div>` : ""}
-    ${calc ? `<details class="calc" ${open ? "open" : ""}><summary>Ver la operación</summary>${calc}</details>` : ""}</div>`;
+    ${calc ? `<details class="calc"><summary>Ver la cuenta</summary>${calc}</details>` : ""}</div>`;
   return d;
 }
 
 function renderCount() {
   const c = countCause || ranking()[0], nm = N[c].short;
   CAUSAS.forEach((x) => document.getElementById("cs-" + x).setAttribute("aria-pressed", x === c ? "true" : "false"));
-  const T = 10000, k = Object.keys(ev).length, pC = infer({}).post[c];
+  const T = 10000, k = Object.keys(ev).length;
   const nf = (x) => x >= 100 ? Math.round(x).toLocaleString("es-MX") : x >= 10 ? x.toFixed(0) : x.toFixed(1);
-  let fill, html;
+  const rnd = (x) => x >= 10 ? Math.round(x) : Math.round(x * 10) / 10;
+  let fill, html, more = "";
   if (ev[c] !== undefined) {
     fill = ev[c] ? 100 : 0;
-    html = `<p>Fijaste «${nm}» en «${ev[c] ? "Sí" : "No"}» como supuesto, así que no hay nada que contar: vale ${ev[c] ? "100 %" : "0 %"}. Elige otra causa arriba.</p>`;
+    html = `<p>Fijaste «${nm}» en «${ev[c] ? "Sí" : "No"}» como supuesto, así que no hay nada que contar. Elige otra causa arriba.</p>`;
   } else if (!k) {
-    fill = Math.round(pC * 100);
-    html = `<p>Imagina <b>10,000 momentos</b> del servidor. Sin pistas, «${nm}» está presente en ${T.toLocaleString("es-MX")} × ${pc1(pC)} = <b>${nf(T * pC)}</b> de ellos.</p>
-      <p class="eq">${nf(T * pC)} ÷ 10,000 = ${fmt(pC)}</p>
-      <p class="small">Todavía no hay nada que filtrar. Marca una pista y aquí verás cómo se cuentan los momentos que coinciden con ella: esa cuenta es el Teorema de Bayes.</p>`;
+    const pA = infer({}).post[c]; fill = Math.round(pA * 100);
+    html = `<p class="sum">De 10,000 momentos del servidor, «${nm}» está presente en unos <b>${nf(T * pA)}</b>: <span class="mono">${fmt(pA)}</span>.</p>
+      <p class="small">Cada cuadrito es 1 % de los momentos. Marca una pista y aquí verás cómo se cuentan solo los momentos en que pasa lo que ves.</p>`;
   } else {
-    const pEC = pEv({ ...ev, [c]: 1 }) / pC, pEN = pEv({ ...ev, [c]: 0 }) / (1 - pC);
-    const rnd = (x) => x >= 10 ? Math.round(x) : Math.round(x * 10) / 10;   // conteos redondeados para que la suma cuadre
-    const nC = T * pC, nN = T - nC, A = rnd(nC * pEC), B = rnd(nN * pEN), post = (nC * pEC) / (nC * pEC + nN * pEN);
-    fill = Math.round(post * 100);
-    html = `<p>Imagina <b>10,000 momentos</b> del servidor y sepáralos en dos grupos: con «${nm}» y sin ella. Después cuenta en cuántos de cada grupo pasa justo lo que marcaste.</p>
-      <div class="tree">
-        <div class="t-root">10,000 momentos</div>
-        <div class="t-row">
-          <div class="t-node" style="border-left-color:var(${N[c].color})"><small>con «${nm}»</small><b>${nf(nC)}</b><span>10,000 × ${pc1(pC)}</span></div>
-          <div class="t-node"><small>sin «${nm}»</small><b>${nf(nN)}</b><span>10,000 × ${pc1(1 - pC)}</span></div>
-        </div>
-        <div class="t-row">
-          <div class="t-node hit" style="border-left-color:var(${N[c].color})"><small>…y además pasa lo que marcaste</small><b>${nf(A)}</b><span>${nf(nC)} × ${pc1(pEC)}</span></div>
-          <div class="t-node"><small>…y además pasa lo que marcaste</small><b>${nf(B)}</b><span>${nf(nN)} × ${pc1(pEN)}</span></div>
-        </div>
-        <div class="t-res">Lo que marcaste pasa en ${nf(A)} + ${nf(B)} = <b>${nf(A + B)}</b> momentos. De ellos, ${nf(A)} tienen «${nm}»:<br><span class="mono">${nf(A)} ÷ ${nf(A + B)} = <b>${pc1(post)}</b></span></div>
-      </div>
-      <div class="bayes"><b class="l">La misma cuenta, escrita como fórmula</b>P(${nm} | pistas) = P(pistas | ${nm}) × P(${nm}) ÷ P(pistas)<br>= ${pEC.toFixed(3)} × ${pC.toFixed(3)} ÷ ${((A + B) / T).toFixed(4)} = <b>${pc1(post)}</b></div>
-      <p class="small"><b>¿Por qué es el Teorema de Bayes «contado»?</b> La fórmula multiplica qué tan común es la causa (${pc1(pC)}) por qué tan seguido produce lo que ves (${pc1(pEC)}), y divide entre qué tan seguido pasa lo que ves en total (${pc1((A + B) / T)}). El árbol hace exactamente eso, pero con momentos en vez de porcentajes: si divides cada número del árbol entre 10,000 obtienes los de la fórmula. Los 100 cuadritos son los momentos en que pasa lo que marcaste; los coloreados son los que además tienen «${nm}».</p>`;
+    const b = bayesOf(c);
+    const nA = T * b.pA, nN = T - nA, A = rnd(nA * b.pBA), B = rnd(nN * b.pBnA), tot = A + B;
+    fill = Math.round(b.post * 100);
+    html = `<p class="sum">De 10,000 momentos del servidor, lo que marcaste pasa en <b>${nf(tot)}</b>. En <b>${nf(A)}</b> de ellos hay «${nm}».<br><span class="mono">${nf(A)} ÷ ${nf(tot)} = <b>${pc1(b.post)}</b></span></p>
+      <p class="small">Los 100 cuadritos representan esos ${nf(tot)} momentos; los coloreados son los que tienen «${nm}».</p>`;
+    more = `<details class="more"><summary>Ver cómo se cuenta, paso a paso</summary><div class="bx"><ol class="steps5">
+        <li><p>De los 10,000 momentos, ¿en cuántos está «${nm}»? Usa P(A), su probabilidad inicial:</p><div class="ops">10,000 × ${pc1(b.pA)} = ${nf(nA)} momentos con la causa</div></li>
+        <li><p>De esos ${nf(nA)}, ¿en cuántos pasa lo que marcaste? Usa P(B | A):</p><div class="ops">${nf(nA)} × ${pc1(b.pBA)} = ${nf(A)}</div></li>
+        <li><p>Los otros ${nf(nN)} momentos no tienen la causa. ¿En cuántos pasa lo que marcaste de todos modos?</p><div class="ops">${nf(nN)} × ${pc1(b.pBnA)} = ${nf(B)}</div></li>
+        <li><p>En total, lo que marcaste pasa en:</p><div class="ops">${nf(A)} + ${nf(B)} = ${nf(tot)} momentos (P(B) = ${nf(tot)} ÷ 10,000 = ${pc1(b.pB)})</div></li>
+        <li><p>De esos ${nf(tot)} momentos, ¿qué parte tiene «${nm}»?</p><div class="ops">${nf(A)} ÷ ${nf(tot)} = <b>${pc1(b.post)}</b></div></li>
+      </ol></div></details>
+      <details class="more"><summary>¿Por qué esto es el Teorema de Bayes?</summary><div class="bx">
+        ${FORMULA}
+        <p>La fórmula dice: multiplica P(B | A) por P(A) y divide entre P(B). Si multiplicas lo de arriba y lo de abajo por 10,000, el resultado no cambia, pero los porcentajes se convierten en momentos que se pueden contar:</p>
+        <table class="map"><tbody>
+          <tr><td>10,000 × P(A) × P(B | A)<br>= 10,000 × ${b.pA.toFixed(3)} × ${b.pBA.toFixed(3)} ≈ ${nf(A)}</td><td>Lo de arriba de la fórmula = los momentos con la causa <b>y</b> con lo que marcaste (pasos 1 y 2).</td></tr>
+          <tr><td>10,000 × P(B)<br>= 10,000 × ${b.pB.toFixed(4)} ≈ ${nf(tot)}</td><td>Lo de abajo = todos los momentos en que pasa lo que marcaste (paso 4).</td></tr>
+          <tr><td>${nf(A)} ÷ ${nf(tot)} = ${pc1(b.post)}</td><td>La división final (paso 5) da el mismo resultado que la fórmula.</td></tr>
+        </tbody></table>
+        <p>Por eso se le llama el Teorema de Bayes <b>«contado»</b>: es la misma operación, pero con momentos que uno puede imaginar en lugar de porcentajes. La sección 04 muestra esta cuenta con la fórmula.</p>
+      </div></details>`;
   }
   const cells = $("#waffle").children;
   for (let i = 0; i < 100; i++) {
@@ -1092,6 +1093,7 @@ function renderCount() {
     cells[i].style.borderColor = on ? `var(${N[c].color})` : "";
   }
   $("#countText").innerHTML = html;
+  $("#countMore").innerHTML = more;
 }
 
 function select(v) { sel = v; renderNodes(); renderDetail(); }
