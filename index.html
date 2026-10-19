@@ -434,6 +434,17 @@ table.map td:first-child { font-family: var(--f-mono); }
 
     <section class="panel count" id="conteo" aria-label="Contar momentos">
       <div class="sheet-head"><span class="no">05</span><h2>10,000 momentos</h2><small>el Teorema de Bayes, contado</small></div>
+      <details class="more" style="margin:0 0 12px"><summary>¿Para qué está esta sección?</summary><div class="bx">
+        <p>La sección 04 explica cada cambio con la fórmula de Bayes. Es correcta, pero frases como «37.7 % por 20 %, dividido entre 9.9 %» son difíciles de imaginar. Aquí se hace <b>la misma cuenta sin fórmulas</b>: en lugar de porcentajes, se imaginan 10,000 momentos del servidor y solo se cuentan.</p>
+        <p><b>¿Por qué hace falta entenderlo sin fórmulas?</b> Porque la idea de Bayes es muy sencilla y la fórmula la esconde. La idea es solo esta: <i>de todos los momentos en que pasa lo que estoy viendo, ¿en qué parte está la causa?</i> Si la entiendes así, puedes explicarla a cualquiera y razonar el resultado sin calculadora.</p>
+        <p><b>¿Para qué sirve en este proyecto?</b></p>
+        <ol class="steps5">
+          <li><p><b>Para entender el resultado.</b> Se ve con números concretos por qué una causa poco común puede terminar como la más probable: entre los momentos que coinciden con lo que ves, la mayoría la tienen.</p></li>
+          <li><p><b>Para comprobar la cuenta.</b> Si contar momentos y usar la fórmula de la sección 04 dan el mismo porcentaje, el cálculo está bien hecho. Es la misma idea que la comprobación a mano de la sección 9 del reporte.</p></li>
+          <li><p><b>Para explicarlo en la presentación.</b> Si te preguntan qué hace la red, basta con decir: «de los casos en que pasa lo que veo, cuento en cuántos está cada causa».</p></li>
+        </ol>
+        <p class="why4"><b>Cómo usarla:</b> marca pistas arriba o elige una consulta C1–C7, y escoge aquí la causa que quieras contar. Los cuadritos y el resumen se actualizan solos; abre «Ver cómo se cuenta» para seguir la cuenta paso a paso.</p>
+      </div></details>
       <div class="count-sel" id="countSel"></div>
       <div class="count-body">
         <div class="waffle" id="waffle" aria-hidden="true"></div>
