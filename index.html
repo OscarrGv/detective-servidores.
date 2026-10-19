@@ -1,0 +1,1251 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Detective de Servidores</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@500;600&family=Kalam:wght@400&family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
+<meta name="description" content="Red bayesiana interactiva para diagnosticar un servidor de base de datos.">
+</head>
+<body>
+<style>
+/* Layout: hoja de servicio técnico. Barra fija de atajos arriba; diagrama sobre papel milimétrico a la izquierda,
+   pistas y veredicto a la derecha; hojas numeradas debajo. Bordes de tinta, esquinas casi rectas, marcador amarillo y notas a mano. */
+:root {
+  color-scheme: light;
+  --bg: #F3F6F7;
+  --paper: #FFFFFF;
+  --paper-2: #F2F5F7;
+  --ink: #34404D;
+  --muted: #6E7B88;
+  --rule: #B9C5D0;
+  --hair: #DCE3E9;
+  --grid: rgba(110, 140, 170, .08);
+  --mark: #FCE9A6;
+  --mark-ink: #34404D;
+  --accent: #4A6FA5;
+  --accent-soft: #E6EEF8;
+  --track: rgba(52, 64, 77, .08);
+  --pencil: #5B82B8;
+
+  --causa: #EFA28C;  --causa-soft: #FDF0EB;  --causa-ink: #B4614A;
+  --inter: #EBC57A;  --inter-soft: #FDF6E6;  --inter-ink: #9A7426;
+  --pista: #95C7AE;  --pista-soft: #EEF7F2;  --pista-ink: #3F7F61;
+
+  --c0: #6C93DB; --c1: #EBA35A; --c2: #A98AD9; --c3: #E58A99;
+  --si: #4E9C77; --si-soft: #E5F3EC;
+  --no: #D06F66; --no-soft: #FBEAE7;
+
+  --f-display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-hand: "Kalam", "Comic Neue", "Segoe Print", cursive;
+  --r: 3px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 18px 40px;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible, [tabindex]:focus-visible, a:focus-visible { outline: 3px solid var(--mark); outline-offset: 2px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.mark { background: linear-gradient(100deg, transparent 2%, var(--mark) 4%, var(--mark) 96%, transparent 98%) 0 62% / 100% 52% no-repeat; color: inherit; padding: 0 .12em; }
+.hand { font-family: var(--f-hand); color: var(--pencil); }
+
+/* ---------- cabecera ---------- */
+.masthead { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 24px; align-items: end; border-bottom: 2px solid var(--rule); padding-bottom: 14px; }
+@media (max-width: 700px) { .masthead { grid-template-columns: minmax(0, 1fr); } }
+.brand .kicker { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); }
+.brand h1 { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; font-size: clamp(38px, 6vw, 64px); line-height: .92; letter-spacing: .005em; }
+.brand p { margin: 8px 0 0; max-width: 60ch; color: var(--muted); }
+.brand p .hand { font-size: 17px; }
+.stamp { border: 2px solid var(--rule); padding: 8px 12px; font-family: var(--f-mono); font-size: 12px; line-height: 1.45; transform: rotate(-1.5deg); background: var(--paper); justify-self: end; }
+.stamp b { font-family: var(--f-display); font-size: 18px; letter-spacing: .04em; text-transform: uppercase; display: block; }
+
+/* ---------- barra de atajos fija ---------- */
+.toolbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); border-bottom: 1.5px solid var(--rule);
+  display: flex; gap: 10px; align-items: center; justify-content: space-between; padding-block: 8px; flex-wrap: wrap; }
+.jump { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; min-width: 0; flex: 1 1 520px; }
+.jump a { text-decoration: none; color: var(--ink); white-space: nowrap; padding: 6px 10px; font-weight: 600; font-size: 14px; border-radius: var(--r); display: inline-flex; gap: 6px; align-items: baseline; }
+.jump a span { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+.jump a:hover { background: var(--paper-2); }
+.jump a.on { background: linear-gradient(transparent 60%, var(--mark) 60%); }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn { border: 1.5px solid var(--rule); background: var(--paper); border-radius: var(--r); padding: 6px 12px; font-weight: 700; font-size: 13.5px; transition: background .15s, transform .1s; }
+.btn:hover { background: var(--paper-2); }
+.btn:active { transform: translateY(1px); }
+.btn[aria-pressed="true"], .btn.solid { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+
+.scen { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.scen .lbl { font-family: var(--f-mono); font-size: 12px; color: var(--muted); margin-right: 6px; }
+.chip { border: 1.5px solid var(--hair); background: var(--paper); border-radius: var(--r); padding: 4px 10px 4px 4px; font-size: 13.5px; display: inline-flex; gap: 8px; align-items: center; transition: border-color .15s, background .15s; }
+.chip b { font-family: var(--f-mono); font-size: 12px; background: var(--accent-soft); color: var(--accent); padding: 1px 6px; border-radius: 2px; font-weight: 600; }
+.chip:hover { border-color: var(--rule); }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--mark); color: var(--mark-ink); }
+
+/* ---------- rejilla ---------- */
+.main { display: grid; gap: 16px; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  grid-template-areas: "stage side" "why count" "detail hist" "lab lab"; }
+.stage { grid-area: stage; } .side { grid-area: side; display: grid; gap: 16px; align-content: start; }
+.why { grid-area: why; } .count { grid-area: count; } .detail { grid-area: detail; } .hist { grid-area: hist; } .lab { grid-area: lab; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "side" "stage" "why" "count" "detail" "hist" "lab"; } }
+.panel, .sheet { background: var(--paper); border: 1.5px solid var(--rule); border-radius: var(--r); padding: 16px 18px 18px; min-width: 0; scroll-margin-top: 70px; }
+.sheet-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: -16px -18px 14px; padding: 9px 18px 8px; border-bottom: 1.5px solid var(--rule); }
+.sheet-head .no { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.sheet-head h2 { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; font-size: 23px; letter-spacing: .02em; line-height: 1; }
+.sheet-head small { color: var(--muted); font-size: 13.5px; }
+.sheet-head .hand { margin-left: auto; font-size: 16px; }
+
+/* ---------- diagrama ---------- */
+.stage { padding: 0; overflow: hidden; background-color: var(--paper);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px; }
+.stage .sheet-head { margin: 0; background: var(--paper); }
+.svgbox { overflow: hidden; padding: 2px 6px 0; }
+#net { display: block; width: 100%; height: auto; user-select: none; overflow: visible; --lk: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 4px 18px 14px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; border: 1.5px solid; }
+
+.edge { stroke: var(--muted); stroke-width: 1.6; fill: none; opacity: .5; transition: opacity .3s, stroke .3s, stroke-width .3s; }
+.edge.hot { stroke: var(--accent); opacity: 1; stroke-width: 2.6; }
+.edge.dim { opacity: .14; }
+.arrowhead { fill: var(--muted); opacity: .7; } .arrowhead-hot { fill: var(--accent); }
+.edge-hit { stroke: transparent; stroke-width: 16; fill: none; cursor: help; }
+.node { cursor: pointer; }
+.node .body { stroke-width: 2; transition: stroke-width .2s; }
+.node.causa .body { fill: var(--causa-soft); stroke: var(--causa); }
+.node.inter .body { fill: var(--inter-soft); stroke: var(--inter); }
+.node.pista .body { fill: var(--pista-soft); stroke: var(--pista); }
+.node .track { fill: none; stroke: var(--track); stroke-width: 7; }
+.node .arc { fill: none; stroke-width: 7; stroke-linecap: butt; }
+.node.causa .arc { stroke: var(--causa); } .node.inter .arc { stroke: var(--inter); } .node.pista .arc { stroke: var(--pista); }
+.node .pct { font-family: var(--f-mono); font-weight: 600; font-size: calc(20px * var(--lk)); fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
+.node .sub { font-size: 11px; fill: var(--muted); text-anchor: middle; font-family: var(--f-mono); }
+.node .halo { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 3 5; opacity: 0; transition: opacity .2s; }
+.node.sel .halo { opacity: 1; animation: spin 18s linear infinite; transform-origin: center; }
+.node.ev .body { stroke-width: 4.5; }
+.node:hover .body { stroke-width: 4; }
+.node.ping .body { animation: ping .6s ease-out; }
+.badge rect { stroke-width: 1.5; }
+.badge.si rect { fill: var(--si-soft); stroke: var(--si); } .badge.si text { fill: var(--si); }
+.badge.no rect { fill: var(--no-soft); stroke: var(--no); } .badge.no text { fill: var(--no); }
+.badge text { font-family: var(--f-mono); font-weight: 600; font-size: 13px; text-anchor: middle; dominant-baseline: central; }
+.nlabel { font-family: var(--f-body); font-weight: 700; font-size: calc(16.5px * var(--lk)); fill: var(--ink); text-anchor: middle;
+  paint-order: stroke; stroke: var(--paper); stroke-width: 6px; stroke-linejoin: round; pointer-events: none; }
+.note { font-family: var(--f-hand); font-size: calc(19px * var(--lk)); fill: var(--pencil); pointer-events: none; }
+.note-line { stroke: var(--pencil); stroke-width: 1.5; fill: none; stroke-linecap: round; }
+.particle { fill: var(--accent); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes ping { 0% { stroke-width: 9; } 100% { stroke-width: 2; } }
+
+.tour[hidden] { display: none; }
+.tour { margin: 12px 18px 4px; background: var(--accent-soft); color: var(--ink); border: 1.5px solid var(--rule); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 8px; }
+.tour h3 { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; font-size: 24px; letter-spacing: .02em; line-height: 1.05; }
+.tour p { margin: 0; max-width: 72ch; }
+.tour .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tour .stepno { font-family: var(--f-mono); font-size: 12.5px; opacity: .8; }
+.tour .steps { display: flex; gap: 4px; }
+.tour .steps i { width: 20px; height: 4px; background: currentColor; opacity: .3; transition: opacity .3s, background .3s; }
+.tour .steps i.on { opacity: 1; background: var(--accent); }
+.tour button { border: 1.5px solid var(--rule); background: var(--paper); color: var(--ink); border-radius: var(--r); padding: 5px 14px; font-weight: 700; }
+.tour button.primary { background: var(--mark); color: var(--mark-ink); border-color: var(--mark); }
+.tour button:disabled { opacity: .35; cursor: default; }
+
+/* ---------- pistas ---------- */
+.obs-list { display: grid; gap: 0; }
+.obs { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--hair); }
+.obs:last-child { border-bottom: 0; }
+.obs .name { font-weight: 700; line-height: 1.25; display: flex; gap: 8px; align-items: center; }
+.obs .name::before { content: ""; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--pista); background: transparent; flex: none; }
+.obs.set .name::before { background: var(--pista); }
+.obs .q { font-size: 13px; color: var(--muted); padding-left: 17px; }
+.seg { display: inline-flex; border: 1.5px solid var(--rule); border-radius: var(--r); overflow: hidden; background: var(--paper); }
+.seg button { border: 0; background: transparent; padding: 5px 11px; font-weight: 700; font-size: 13.5px; min-width: 40px; color: var(--muted); }
+.seg button + button { border-left: 1.5px solid var(--rule); }
+.seg button[aria-pressed="true"][data-v="u"] { background: var(--paper-2); color: var(--ink); }
+.seg button[aria-pressed="true"][data-v="1"] { background: var(--si-soft); color: var(--si); box-shadow: inset 0 -3px 0 var(--si); }
+.seg button[aria-pressed="true"][data-v="0"] { background: var(--no-soft); color: var(--no); box-shadow: inset 0 -3px 0 var(--no); }
+.textbtn { border: 0; background: none; color: var(--accent); font-weight: 700; padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; }
+.obs-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; font-size: 13px; color: var(--muted); font-family: var(--f-mono); }
+
+/* ---------- veredicto ---------- */
+.verdict-head .big { font-family: var(--f-body); font-size: 23px; font-weight: 800; line-height: 1.2; margin-bottom: 14px; }
+.bars { display: grid; gap: 12px; }
+.bar { display: grid; gap: 5px; cursor: pointer; }
+.bar .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.bar .nm { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.bar .nm i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.bar .val { font-family: var(--f-mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+.bar .delta { font-family: var(--f-mono); font-size: 12px; padding: 0 6px; margin-left: 6px; border: 1px solid; border-radius: 2px; }
+.delta.up { color: var(--si); } .delta.down { color: var(--no); } .delta.eq { color: var(--muted); border-color: var(--hair) !important; }
+.track-h { position: relative; height: 11px; background: var(--paper-2); border: 1px solid var(--hair); }
+.fill-h { position: absolute; inset: 0 auto 0 0; transition: width .7s cubic-bezier(.2, .8, .2, 1); }
+.prior-tick { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--muted); transition: left .4s; }
+.bar.lead .nm { font-weight: 800; }
+.action { margin-top: 14px; padding: 10px 12px; border-left: 4px solid var(--mark); background: var(--paper-2); font-size: 14px; }
+.tick-note { font-size: 13px; margin-top: 10px; }
+
+/* ---------- por qué ---------- */
+.why-list { display: grid; gap: 14px; margin-top: 12px; }
+.why-item { display: grid; grid-template-columns: 5px minmax(0, 1fr); gap: 12px; animation: rise .45s ease both; }
+.why-item h3 { font-size: 15.5px; font-weight: 700; }
+.why-item p { margin: 3px 0 0; }
+.why-item .tag { display: inline-block; font-family: var(--f-mono); font-size: 12px; padding: 1px 7px; background: var(--mark); color: var(--mark-ink); margin-top: 6px; }
+.why-item .contrib { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.pill { font-size: 12.5px; padding: 1px 8px; border: 1px solid var(--hair); border-radius: 2px; background: var(--paper-2); }
+.pill .mono { font-weight: 600; }
+.pill.up .mono { color: var(--si); } .pill.down .mono { color: var(--no); }
+.lead-why { font-size: 15.5px; margin: 0; padding: 10px 12px; border-left: 4px solid var(--accent); background: var(--paper-2); }
+@keyframes rise { from { opacity: .001; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---------- conteo ---------- */
+.count-sel { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.count-sel button { border: 1.5px solid var(--hair); background: var(--paper); border-radius: var(--r); padding: 3px 10px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.count-sel button i { width: 9px; height: 9px; border-radius: 50%; }
+.count-sel button[aria-pressed="true"] { border-color: var(--rule); background: var(--paper-2); }
+.count-body { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: 16px; align-items: center; }
+@media (max-width: 520px) { .count-body { grid-template-columns: minmax(0, 1fr); } }
+.waffle { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; max-width: 210px; width: 100%; }
+.waffle i { aspect-ratio: 1; background: var(--paper-2); border: 1px solid var(--hair); transition: background-color .35s, border-color .35s; }
+.count-text p { margin: 0 0 8px; }
+.count-text .eq { font-family: var(--f-mono); border: 1.5px solid var(--rule); padding: 6px 10px; display: inline-block; font-size: 14px; }
+
+/* ---------- detalle ---------- */
+.detail-head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.kind { font-family: var(--f-mono); font-size: 12px; padding: 1px 7px; border: 1.5px solid; border-radius: 2px; }
+.kind.causa { color: var(--causa-ink); background: var(--causa-soft); } .kind.inter { color: var(--inter-ink); background: var(--inter-soft); } .kind.pista { color: var(--pista-ink); background: var(--pista-soft); }
+.detail h3 { font-size: 21px; font-weight: 800; }
+.detail p { margin: 6px 0; }
+.sub-lbl { font-family: var(--f-mono); font-size: 12px; color: var(--muted); margin-top: 14px; display: block; }
+.cpt-wrap { overflow-x: auto; margin-top: 6px; }
+table.cpt { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 380px; }
+.cpt th { text-align: left; font-weight: 700; font-size: 12.5px; padding: 6px 8px; border-bottom: 1.5px solid var(--rule); }
+.cpt td { padding: 5px 8px; border-bottom: 1px dashed var(--hair); }
+.cpt td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.cpt .yn { font-weight: 700; } .cpt .yn.s { color: var(--si); } .cpt .yn.n { color: var(--no); }
+.cpt tr.best td { background: var(--mark); color: var(--mark-ink); }
+.cpt tr.best td.yn { color: var(--mark-ink); }
+.mini { height: 8px; background: var(--paper-2); border: 1px solid var(--hair); position: relative; min-width: 70px; }
+.mini span { position: absolute; inset: 0 auto 0 0; background: var(--accent); transition: width .6s; }
+.links { display: grid; gap: 4px; margin-top: 6px; font-size: 14px; }
+.links div { padding: 6px 0; border-bottom: 1px dashed var(--hair); }
+.suppose { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; font-size: 14px; }
+
+/* ---------- historial ---------- */
+#histSvg { width: 100%; height: auto; display: block; }
+.hist-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+.hist-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+.hist-steps { font-size: 13px; color: var(--muted); margin-top: 6px; font-family: var(--f-mono); }
+.hist-steps ol { margin: 4px 0 0; padding-left: 22px; }
+
+/* ---------- laboratorio ---------- */
+.lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px 24px; }
+.slider { display: grid; gap: 4px; }
+.slider label { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: 14px; }
+.slider label span { font-family: var(--f-mono); }
+.slider small { color: var(--muted); font-size: 12.5px; font-family: var(--f-mono); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.lab-flag { display: none; margin-top: 14px; padding: 10px 12px; background: var(--mark); color: var(--mark-ink); font-size: 14px; }
+.lab-flag.on { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lab-flag button { border: 1.5px solid currentColor; background: transparent; color: inherit; border-radius: var(--r); padding: 4px 12px; font-weight: 700; }
+.foot { color: var(--muted); font-size: 13px; border-top: 1.5px solid var(--rule); padding-top: 10px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+
+/* ---------- fuera del simulador: reporte y código ---------- */
+.divider { display: flex; align-items: center; gap: 14px; margin-top: 18px; color: var(--muted); font-family: var(--f-mono); font-size: 12.5px; }
+.divider::before, .divider::after { content: ""; flex: 1; border-top: 2px dashed var(--rule); }
+.extras { display: grid; gap: 16px; }
+.doc p { margin: 0 0 10px; max-width: 75ch; }
+.doc h3 { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; font-size: 18px; letter-spacing: .03em; margin: 18px 0 8px; }
+.doc h3:first-child { margin-top: 0; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px 28px; }
+.vars { display: grid; gap: 10px; }
+.vars div { border-left: 4px solid var(--k); background: var(--ks); padding: 8px 12px; font-size: 14px; }
+.vars b { display: block; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--ki); }
+.question { background: var(--mark); color: var(--mark-ink); padding: 12px 14px; font-size: 15px; margin: 4px 0 12px; }
+.question b { font-family: var(--f-display); text-transform: uppercase; letter-spacing: .03em; font-size: 17px; }
+.tbl-wrap { overflow-x: auto; border: 1.5px solid var(--rule); border-radius: var(--r); }
+.qtbl { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+.qtbl th, .qtbl td { padding: 8px 10px; border-bottom: 1px solid var(--hair); text-align: left; vertical-align: middle; }
+.qtbl th { background: var(--paper-2); font-size: 12.5px; font-weight: 700; }
+.qtbl th i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+.qtbl td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.qtbl th.n { text-align: right; }
+.qtbl td.n.win { background: var(--mark); font-weight: 700; }
+.qtbl tr.hl td { background: var(--accent-soft); }
+.qtbl tr.hl td.n.win { background: var(--mark); }
+.qtbl .cid { width: 1%; white-space: nowrap; font-family: var(--f-mono); font-weight: 700; }
+.qtbl button { border: 1.5px solid var(--rule); background: var(--paper); border-radius: var(--r); padding: 3px 9px; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.qtbl button:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.dl { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 6px; }
+.dl a { text-decoration: none; color: var(--accent); background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: var(--r); padding: 9px 14px; font-weight: 700; font-size: 14px; display: inline-grid; gap: 1px; }
+.dl a small { color: var(--muted); font-weight: 500; font-size: 12px; font-family: var(--f-mono); }
+.dl a:hover, .dl button:hover { background: var(--paper); }
+.dl button { color: var(--accent); background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: var(--r); padding: 9px 14px; font-weight: 700; font-size: 14px; display: inline-grid; gap: 1px; text-align: left; }
+.dl button small { color: var(--muted); font-weight: 500; font-size: 12px; font-family: var(--f-mono); }
+.dl button[disabled] { opacity: .6; cursor: progress; }
+.dl-msg { font-size: 13.5px; color: var(--muted); min-height: 1.2em; margin: 0 0 8px; }
+.src { border: 1.5px solid var(--rule); border-radius: var(--r); margin-bottom: 6px; }
+.src summary { padding: 8px 12px; font-weight: 700; cursor: pointer; }
+.src pre { margin: 0; max-height: 460px; overflow: auto; padding: 12px; background: var(--paper-2); border-top: 1px solid var(--hair); font-family: var(--f-mono); font-size: 12.5px; line-height: 1.45; }
+pre.cmd { background: var(--paper-2); border: 1px solid var(--hair); border-radius: var(--r); padding: 10px 12px; font-family: var(--f-mono); font-size: 13.5px; overflow-x: auto; margin: 0 0 10px; }
+.parts { list-style: none; counter-reset: p; margin: 0; padding: 0; display: grid; gap: 10px; }
+.parts li { counter-increment: p; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 4px 10px; }
+.parts li::before { content: counter(p); font-family: var(--f-display); font-weight: 800; font-size: 22px; color: var(--accent); line-height: 1; }
+.parts li b { display: block; }
+.parts code, .doc code { font-family: var(--f-mono); font-size: 12.5px; background: var(--paper-2); padding: 1px 5px; border-radius: 2px; overflow-wrap: anywhere; }
+.parts li span { color: var(--muted); font-size: 14px; }
+.outs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.outs figure { margin: 0; border: 1.5px solid var(--rule); border-radius: var(--r); background: #fff; }
+.outs img { width: 100%; height: auto; display: block; }
+.outs figcaption { font-size: 13px; color: var(--muted); padding: 6px 10px; border-top: 1px solid var(--hair); }
+.fnote { font-size: 13.5px; color: var(--muted); border-left: 3px solid var(--hair); padding-left: 10px; }
+
+
+/* ---------- transparencia: cuentas paso a paso ---------- */
+.how { margin-top: 12px; border: 1.5px solid var(--rule); border-radius: var(--r); background: var(--paper); }
+.how summary { cursor: pointer; font-weight: 700; padding: 8px 12px; }
+.how-steps { margin: 0; padding: 2px 14px 12px 34px; display: grid; gap: 12px; font-size: 14.5px; }
+.how-steps .hd { display: block; }
+.combo { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.fx { display: inline-grid; grid-template-columns: auto auto; column-gap: 10px; align-items: baseline; border: 1px solid var(--hair); background: var(--paper-2); border-radius: 2px; padding: 3px 8px; font-size: 12.5px; }
+.fx b { font-weight: 700; }
+.fx small { grid-column: 1; color: var(--muted); font-size: 11.5px; }
+.fx i { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-family: var(--f-mono); font-weight: 600; align-self: center; }
+.ops { font-family: var(--f-mono); font-size: 12.8px; line-height: 1.55; background: var(--paper-2); border: 1px solid var(--hair); padding: 8px 10px; margin-top: 8px; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.ops .lbl { font-family: var(--f-body); font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); }
+.ops .txt { font-family: var(--f-body); font-size: 13.5px; }
+.ops .why-ratio { font-family: var(--f-body); font-size: 13.5px; margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--hair); }
+.calc { margin-top: 8px; }
+.calc summary { cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--accent); padding: 2px 0; }
+.count-body { align-items: start; grid-template-columns: minmax(0, 1fr); }
+.count-body .waffle { max-width: 170px; }
+.tree { display: grid; gap: 8px; font-size: 13.5px; }
+.t-root { text-align: center; font-weight: 700; border: 1.5px solid var(--rule); padding: 6px; background: var(--paper-2); }
+.t-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.t-node { border: 1.5px solid var(--hair); border-left-width: 5px; padding: 6px 8px; display: grid; gap: 1px; min-width: 0; }
+.t-node small { color: var(--muted); font-size: 12px; line-height: 1.3; }
+.t-node b { font-family: var(--f-mono); font-size: 17px; }
+.t-node span { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.t-node.hit { background: var(--mark); }
+.t-res { border: 1.5px solid var(--rule); padding: 8px 10px; }
+.count-text .bayes { font-family: var(--f-mono); font-size: 12.8px; line-height: 1.55; background: var(--paper-2); border: 1px solid var(--hair); padding: 8px 10px; margin: 10px 0 8px; overflow-wrap: anywhere; }
+.count-text .bayes b.l { font-family: var(--f-body); font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); display: block; }
+.count-text .small { color: var(--muted); font-size: 13.5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">
+      <div class="kicker">Red Bayesiana · servidor de base de datos</div>
+      <h1>Detective de Servidores</h1>
+      <p>Marca lo que ves en el servidor y la red recalcula qué tan probable es cada causa. <span class="hand">Toca todo, nada se rompe.</span></p>
+    </div>
+    <div class="stamp"><b>Hoja de diagnóstico</b>Inteligencia Artificial · Unidad 2<br>Instituto Tecnológico de Veracruz</div>
+  </header>
+
+  <nav class="toolbar" aria-label="Atajos">
+    <div class="jump" id="jump">
+      <a href="#red"><span>01</span>La red</a>
+      <a href="#pistas"><span>02</span>Pistas</a>
+      <a href="#veredicto"><span>03</span>Veredicto</a>
+      <a href="#porque"><span>04</span>¿Por qué?</a>
+      <a href="#conteo"><span>05</span>10,000 momentos</a>
+      <a href="#detalle"><span>06</span>Detalle</a>
+      <a href="#historial"><span>07</span>Historial</a>
+      <a href="#laboratorio"><span>08</span>Laboratorio</a>
+      <a href="#reporte"><span>09</span>El ejercicio</a>
+      <a href="#codigo"><span>10</span>El código</a>
+    </div>
+    <div class="quick">
+      <button class="btn" id="mExplore" aria-pressed="true">Explorar</button>
+      <button class="btn" id="mTour" aria-pressed="false">Recorrido guiado</button>
+      <button class="btn" id="quickClear">Borrar pistas</button>
+      <button class="btn" id="quickReset" title="Regresa el laboratorio a los valores del reporte">Valores del reporte</button>
+    </div>
+  </nav>
+
+  <div class="scen" id="scen"><span class="lbl">consultas del reporte →</span></div>
+
+  <main class="main">
+    <section class="panel stage" id="red" aria-label="Diagrama de la red">
+      <div class="sheet-head"><span class="no">01</span><h2>La red en vivo</h2><small>toca un círculo para ver qué es y su tabla</small></div>
+      <div class="tour" id="tour" hidden>
+        <div class="row"><span class="stepno" id="tourStep">Paso 1 de 7</span><div class="steps" id="tourDots"></div></div>
+        <h3 id="tourTitle"></h3>
+        <p id="tourText"></p>
+        <div class="row">
+          <button id="tourExit">Salir</button>
+          <div style="display:flex;gap:8px"><button id="tourPrev">Anterior</button><button id="tourNext" class="primary">Siguiente</button></div>
+        </div>
+      </div>
+      <div class="svgbox"><svg id="net" viewBox="-30 0 1060 610" role="img" aria-label="Red Bayesiana con 9 variables"></svg></div>
+      <div class="legend">
+        <span><i style="background:var(--causa-soft);border-color:var(--causa)"></i>Causa</span>
+        <span><i style="background:var(--inter-soft);border-color:var(--inter)"></i>Causa intermedia</span>
+        <span><i style="background:var(--pista-soft);border-color:var(--pista)"></i>Pista</span>
+        <span>Aro y número: probabilidad de «Sí» en este momento</span>
+      </div>
+    </section>
+
+    <div class="side">
+      <section class="panel" id="pistas" aria-label="Pistas">
+        <div class="sheet-head"><span class="no">02</span><h2>Lo que ves</h2><small>marca cada pista</small></div>
+        <div class="obs-list" id="obsList"></div>
+        <div class="obs-foot"><span id="obsCount">Sin pistas marcadas</span><button class="textbtn" id="clearAll">Borrar todas</button></div>
+      </section>
+      <section class="panel" id="veredicto" aria-label="Veredicto">
+        <div class="sheet-head"><span class="no">03</span><h2>Veredicto</h2></div>
+        <div class="verdict-head"><div class="big" id="vBig"></div></div>
+        <div class="bars" id="bars"></div>
+        <p class="tick-note"><span class="hand">la rayita gris = probabilidad inicial</span> · la etiqueta dice cuánto cambió en el último paso.</p>
+        <div class="action" id="action"></div>
+      </section>
+    </div>
+
+    <section class="panel why" id="porque" aria-label="Por qué">
+      <div class="sheet-head"><span class="no">04</span><h2>¿Por qué cambió?</h2><small>una explicación por causa</small></div>
+      <div id="whyLead"></div>
+      <div class="why-list" id="whyList"></div>
+    </section>
+
+    <section class="panel count" id="conteo" aria-label="Contar momentos">
+      <div class="sheet-head"><span class="no">05</span><h2>10,000 momentos</h2><small>el Teorema de Bayes, contado</small></div>
+      <div class="count-sel" id="countSel"></div>
+      <div class="count-body">
+        <div class="waffle" id="waffle" aria-hidden="true"></div>
+        <div class="count-text" id="countText"></div>
+      </div>
+    </section>
+
+    <section class="panel detail" id="detalle" aria-label="Detalle">
+      <div class="sheet-head"><span class="no">06</span><h2>Detalle</h2><small>del círculo seleccionado</small></div>
+      <div id="detailBody"></div>
+    </section>
+
+    <section class="panel hist" id="historial" aria-label="Historial">
+      <div class="sheet-head"><span class="no">07</span><h2>Historial</h2><small>cómo se ha movido cada causa</small></div>
+      <svg id="histSvg" viewBox="0 0 520 220"></svg>
+      <div class="hist-legend" id="histLegend"></div>
+      <div class="hist-steps" id="histSteps"></div>
+    </section>
+
+    <section class="panel lab" id="laboratorio" aria-label="Laboratorio">
+      <div class="sheet-head"><span class="no">08</span><h2>Laboratorio</h2><small>cambia los supuestos y mira qué pasa</small></div>
+      <div class="lab-grid" id="labGrid"></div>
+      <div class="lab-flag" id="labFlag"><span>Cambiaste los supuestos: estos resultados ya no son los del reporte.</span><button id="labReset">Volver a los valores del reporte</button></div>
+    </section>
+  </main>
+
+  <div class="divider">fuera del simulador · material de entrega</div>
+
+  <div class="extras">
+    <section class="panel doc" id="reporte" aria-label="El ejercicio del reporte">
+      <div class="sheet-head"><span class="no">09</span><h2>El ejercicio del reporte</h2><small>qué se planteó y qué salió</small></div>
+
+      <h3>El caso</h3>
+      <p>Una empresa tiene un sistema que guarda su información en un servidor de base de datos. A veces el sistema se pone lento o falla, y el encargado no puede ver directamente qué lo provoca: solo ve síntomas. El ejercicio consiste en armar una red bayesiana que, a partir de esos síntomas, diga qué causa es la más probable.</p>
+
+      <div class="cols">
+        <div class="vars">
+          <div style="--k:var(--causa);--ks:var(--causa-soft);--ki:var(--causa-ink)"><b>4 causas de fondo</b>Muchos usuarios a la vez (25 %), tablas sin índices (20 %), disco lleno o lento (10 %) y falla de red (5 %). Entre paréntesis: qué tan común es cada una sin saber nada más.</div>
+          <div style="--k:var(--inter);--ks:var(--inter-soft);--ki:var(--inter-ink)"><b>1 causa intermedia</b>Operaciones en espera (bloqueos): aparecen cuando hay muchos usuarios o faltan índices, y a su vez hacen lento el sistema.</div>
+          <div style="--k:var(--pista);--ks:var(--pista-soft);--ki:var(--pista-ink)"><b>4 pistas que sí se ven</b>Sistema lento, procesador al máximo, errores al conectarse y alerta de poco espacio.</div>
+        </div>
+        <div>
+          <p>Las probabilidades son <b>hipotéticas</b>: el equipo las propuso con base en cómo suelen comportarse estos servidores. Con ellas se llenó una tabla por cada variable (la que ves en la sección 06 al tocar un círculo).</p>
+          <p>Después se le hicieron <b>siete preguntas</b> a la red, de C1 a C7. Las primeras cuatro van sumando pistas poco a poco; las otras tres prueban casos distintos.</p>
+        </div>
+      </div>
+
+      <h3>La pregunta principal (C4)</h3>
+      <div class="question"><b>El sistema está lento y el procesador está al máximo, pero no hay errores de conexión ni alerta de espacio. ¿Qué está pasando?</b><br>Respuesta de la red: lo más probable son <b>tablas sin índices, con 76.2 %</b>. El disco (1.8 %) y la red (0.5 %) quedan prácticamente descartados, porque si fueran la causa habrían dejado su propia pista.</div>
+
+      <h3>Las siete consultas</h3>
+      <p>Probabilidad de cada causa según las pistas. Lo resaltado en amarillo es la causa ganadora de cada fila. El botón carga esa consulta en la red de arriba.</p>
+      <div class="tbl-wrap"><table class="qtbl" id="qtbl"></table></div>
+
+      <h3>Qué se concluye</h3>
+      <p>Cada pista mueve las probabilidades en un sentido lógico: la lentitud apunta sobre todo a los índices, el procesador al máximo refuerza «muchos usuarios» y «sin índices», la alerta de espacio dispara al disco (89.8 % en C5) y los errores de conexión con el procesador normal señalan a la red (51.3 % en C7). La red también sirve para <b>descartar</b>: no ver una pista baja la probabilidad de las causas que la habrían provocado.</p>
+
+      <div class="dl">
+        <a href="descargas/Reporte_Red_Bayesiana_BD.docx" download>Descargar el reporte <small>Word · 9 páginas</small></a>
+      </div>
+      
+    </section>
+
+    <section class="panel doc" id="codigo" aria-label="El código">
+      <div class="sheet-head"><span class="no">10</span><h2>El código</h2><small>el mismo ejercicio, en Python</small></div>
+
+      <h3>Descarga</h3>
+      <div class="dl">
+        <a href="descargas/red_bayesiana_bd.py" download>Descargar el programa <small>red_bayesiana_bd.py · Python</small></a>
+        <a href="descargas/Codigo_Red_Bayesiana.zip" download>Descargar todo <small>.zip · programa, página y resultados</small></a>
+        <a href="descargas/resultados/consultas.txt" download>Descargar los resultados <small>consultas.txt · lo que imprime el programa</small></a>
+      </div>
+
+      
+      <details class="src" id="srcBox"><summary>Ver el código completo aquí mismo</summary><pre id="srcPre">Cargando…</pre></details>
+
+      <h3>Qué ejemplo resuelve</h3>
+      <p>Es exactamente el caso de la sección 09: las mismas nueve variables, las mismas flechas, las mismas tablas de probabilidad y las mismas siete consultas (C1 a C7). Por eso los porcentajes que imprime el programa son los mismos que ves en el reporte y en esta página. Esta página es la versión interactiva; el programa es la versión que se entrega como código.</p>
+
+      <h3>Cómo ejecutarlo</h3>
+      <pre class="cmd">pip install pgmpy matplotlib networkx
+python red_bayesiana_bd.py</pre>
+      <p class="fnote">Si <code>pgmpy</code> no se pudo instalar, el programa no se detiene: hace la cuenta «a mano», revisando las 512 combinaciones posibles de Sí y No de las nueve variables, y da los mismos resultados.</p>
+
+      <h3>Qué hace, parte por parte</h3>
+      <ol class="parts">
+        <li><div><b>Define las variables y las flechas</b><span>Listas <code>CAUSAS</code>, <code>INTERMEDIAS</code> y <code>PISTAS</code>, y la lista <code>FLECHAS</code>, que dice quién influye en quién. Es el diagrama de la sección 01, escrito como texto.</span></div></li>
+        <li><div><b>Escribe las probabilidades</b><span><code>PROB_INICIAL</code> guarda qué tan común es cada causa y <code>TABLAS</code> guarda, para cada variable, la probabilidad de «Sí» según sus causas. Para «sistema lento», <code>probabilidad_sistema_lento()</code> supone que cada causa, por su cuenta, puede volverlo lento (índices 70 %, bloqueos 60 %, disco 50 %, otras cosas 3 %).</span></div></li>
+        <li><div><b>Arma la red</b><span><code>construir_red_pgmpy()</code> mete todo lo anterior en la librería pgmpy, que revisa que las tablas sean válidas.</span></div></li>
+        <li><div><b>Le hace preguntas</b><span><code>preguntar(evidencia)</code> recibe las pistas observadas y regresa la probabilidad de cada causa. Usa el motor de pgmpy o, si no está, <code>calcular_a_mano()</code>, que aplica el Teorema de Bayes sumando las combinaciones que coinciden con las pistas.</span></div></li>
+        <li><div><b>Corre las siete consultas</b><span>La lista <code>CONSULTAS</code> tiene C1 a C7. <code>main()</code> las responde una por una, comprueba que el cálculo a mano y el de la red coincidan, y mide cuánto mueve cada pista por separado.</span></div></li>
+        <li><div><b>Guarda los resultados</b><span>Crea la carpeta <code>resultados/</code> con el texto de las respuestas (<code>consultas.txt</code>) y dos imágenes que hacen <code>dibujar_red()</code> y <code>graficar_evolucion()</code>.</span></div></li>
+      </ol>
+
+      <h3>Lo que produce</h3>
+      <div class="outs">
+        <figure><img src="diagrama_red.png" alt="Diagrama de la red generado por el programa" loading="lazy"><figcaption>diagrama_red.png: la red dibujada por el programa</figcaption></figure>
+        <figure><img src="evolucion_probabilidades.png" alt="Gráfica de cómo cambian las causas de C1 a C7" loading="lazy"><figcaption>evolucion_probabilidades.png: cómo cambia cada causa de C1 a C7</figcaption></figure>
+      </div>
+    </section>
+  </div>
+
+  <footer class="foot"><span>Probabilidades hipotéticas, solo con fines académicos.</span><span>Oscar Gómez · Said Rosas · Brayan Apolinar</span></footer>
+</div>
+<script>
+(() => {
+"use strict";
+const SVGNS = "http://www.w3.org/2000/svg";
+const $ = (s) => document.querySelector(s);
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const fmt = (p) => (p * 100).toFixed(1) + " %";
+const pts = (d) => (d >= 0 ? "+" : "−") + Math.abs(d * 100).toFixed(1);
+
+// ============ 1. La red ============
+const CAUSAS = ["CargaAlta", "IndicesFaltantes", "DiscoSaturado", "FallaRed"];
+const PISTAS = ["ConsultasLentas", "CPUAlta", "ErroresConexion", "AlertaEspacio"];
+const ORDEN = ["CargaAlta", "IndicesFaltantes", "DiscoSaturado", "FallaRed", "Bloqueos", "CPUAlta", "ConsultasLentas", "ErroresConexion", "AlertaEspacio"];
+const IDX = Object.fromEntries(ORDEN.map((v, i) => [v, i]));
+
+const N = {
+  CargaAlta:        { name: "Muchos usuarios a la vez", short: "Muchos usuarios", kind: "causa", color: "--c0", x: 340, y: 140,
+    desc: "Muchas personas usando el sistema al mismo tiempo, como en horas pico.",
+    why: "Carga al procesador, llena las conexiones y provoca que las operaciones choquen entre sí.",
+    act: "Revisar cuántas conexiones hay activas y ajustar el límite, o usar un pool de conexiones.",
+    prior: "Un sistema típico tiene unas 6 horas pico de 24 al día (≈ 25 %)." },
+  IndicesFaltantes: { name: "Tablas sin índices", short: "Tablas sin índices", kind: "causa", color: "--c1", x: 590, y: 140,
+    desc: "Tablas sin índice: el servidor busca los datos fila por fila, como un libro sin índice.",
+    why: "Vuelve lentas las consultas y cansa al procesador.",
+    act: "Revisar las consultas más lentas (con EXPLAIN) y crear los índices que falten.",
+    prior: "Común en sistemas que crecen sin revisión: 1 de cada 5 casos (20 %)." },
+  DiscoSaturado:    { name: "Disco lleno o lento", short: "Disco lleno o lento", kind: "causa", color: "--c2", x: 840, y: 140,
+    desc: "El disco está lleno o tarda mucho en leer y guardar datos.",
+    why: "Todo lo que lee o guarda el servidor se vuelve lento.",
+    act: "Liberar espacio (registros y respaldos viejos) o ampliar el disco.",
+    prior: "Menos común porque el espacio suele planearse y vigilarse (10 %)." },
+  FallaRed:         { name: "Falla de red", short: "Falla de red", kind: "causa", color: "--c3", x: 90, y: 140,
+    desc: "La red que conecta a los usuarios con el servidor falla.",
+    why: "Los usuarios simplemente no logran llegar al servidor.",
+    act: "Probar la conexión (ping, firewall) y avisar al área de redes.",
+    prior: "La red suele tener respaldo; es lo más raro (5 %)." },
+  Bloqueos:         { name: "Operaciones en espera", short: "Operaciones en espera", kind: "inter", x: 590, y: 320,
+    desc: "Una operación tiene que esperar a que otra termine de usar los mismos datos (bloqueo).",
+    why: "Es una causa intermedia: la provocan los muchos usuarios y a su vez vuelve lento el sistema." },
+  CPUAlta:          { name: "Procesador al máximo", short: "Procesador al máximo", kind: "pista", x: 465, y: 490,
+    desc: "El monitor muestra el procesador trabajando a toda su capacidad.",
+    why: "Separa las causas que cargan al procesador (usuarios, índices) de las que no (disco, red).", q: "¿El monitor muestra el procesador al máximo?" },
+  ConsultasLentas:  { name: "Sistema lento", short: "Sistema lento", kind: "pista", x: 715, y: 490,
+    desc: "Los usuarios reportan que el sistema responde lento.",
+    why: "Es la pista que normalmente inicia el diagnóstico, pero apunta a varias causas a la vez.", q: "¿Los usuarios dicen que va lento?" },
+  ErroresConexion:  { name: "Errores al conectarse", short: "Errores al conectarse", kind: "pista", x: 215, y: 490,
+    desc: "La conexión se cancela por tardar demasiado o el servidor rechaza a los que llegan.",
+    why: "Distingue un problema de red de un exceso de usuarios.", q: "¿Aparecen errores al conectarse?" },
+  AlertaEspacio:    { name: "Alerta de poco espacio", short: "Alerta de espacio", kind: "pista", x: 925, y: 490,
+    desc: "El sistema de monitoreo avisa que queda poco espacio en disco.",
+    why: "Es una señal muy directa: solo la provoca el disco.", q: "¿Saltó la alerta de poco espacio?" },
+};
+const PADRES = {
+  Bloqueos: ["CargaAlta"], CPUAlta: ["CargaAlta", "IndicesFaltantes"],
+  ConsultasLentas: ["IndicesFaltantes", "Bloqueos", "DiscoSaturado"],
+  ErroresConexion: ["FallaRed", "CargaAlta"], AlertaEspacio: ["DiscoSaturado"],
+};
+const FLECHAS = Object.entries(PADRES).flatMap(([h, ps]) => ps.map((p) => [p, h]));
+const RAZON = {
+  "CargaAlta>Bloqueos": "Más gente cambiando datos al mismo tiempo = más choques y esperas.",
+  "CargaAlta>CPUAlta": "Más peticiones por segundo = más trabajo para el procesador.",
+  "CargaAlta>ErroresConexion": "Se rebasa el límite de conexiones y el servidor rechaza a los que llegan.",
+  "IndicesFaltantes>CPUAlta": "Revisar una tabla fila por fila requiere muchísimos cálculos.",
+  "IndicesFaltantes>ConsultasLentas": "Leer toda la tabla tarda más que ir directo al dato.",
+  "Bloqueos>ConsultasLentas": "Una operación que espera su turno tarda más en terminar.",
+  "DiscoSaturado>ConsultasLentas": "Si el disco tarda en leer y guardar, todo se vuelve lento.",
+  "DiscoSaturado>AlertaEspacio": "El monitor avisa cuando el espacio baja de un límite.",
+  "FallaRed>ErroresConexion": "La información no llega y la conexión se cancela.",
+};
+// descendientes (para saber si una causa "provoca" una pista)
+const HIJOS = {}; FLECHAS.forEach(([p, h]) => (HIJOS[p] = HIJOS[p] || []).push(h));
+const desc = (v, acc = new Set()) => { (HIJOS[v] || []).forEach((h) => { acc.add(h); desc(h, acc); }); return acc; };
+
+// ============ 2. Probabilidades (valores del reporte) ============
+const DEFAULT = { prior: { CargaAlta: .25, IndicesFaltantes: .20, DiscoSaturado: .10, FallaRed: .05 }, nor: { i: .70, b: .60, d: .50 } };
+let P = JSON.parse(JSON.stringify(DEFAULT));
+const round2 = (x) => Math.round(x * 100 + 1e-9) / 100;
+function pSi(v, a) { // P(v = Sí | padres) ; a = arreglo 0/1 en ORDEN
+  const g = (k) => a[IDX[k]];
+  switch (v) {
+    case "Bloqueos": return g("CargaAlta") ? .40 : .05;
+    case "CPUAlta": return g("CargaAlta") ? (g("IndicesFaltantes") ? .95 : .70) : (g("IndicesFaltantes") ? .60 : .05);
+    case "ConsultasLentas": {
+      let rap = .97;
+      if (g("IndicesFaltantes")) rap *= 1 - P.nor.i;
+      if (g("Bloqueos")) rap *= 1 - P.nor.b;
+      if (g("DiscoSaturado")) rap *= 1 - P.nor.d;
+      return round2(1 - rap);
+    }
+    case "ErroresConexion": return g("FallaRed") ? (g("CargaAlta") ? .95 : .90) : (g("CargaAlta") ? .30 : .02);
+    case "AlertaEspacio": return g("DiscoSaturado") ? .90 : .03;
+    default: return P.prior[v];
+  }
+}
+function joint(a) {
+  let p = 1;
+  for (const v of ORDEN) { const q = pSi(v, a); p *= a[IDX[v]] ? q : 1 - q; }
+  return p;
+}
+// Inferencia exacta: se revisan las 2^9 = 512 combinaciones (igual que calcular_a_mano() del código Python)
+function infer(ev, groupVars) {
+  const sums = new Array(9).fill(0); let tot = 0; const groups = groupVars ? {} : null;
+  const a = new Array(9);
+  for (let m = 0; m < 512; m++) {
+    let ok = true;
+    for (let i = 0; i < 9; i++) { a[i] = (m >> (8 - i)) & 1; }
+    for (const k in ev) if (a[IDX[k]] !== ev[k]) { ok = false; break; }
+    if (!ok) continue;
+    const p = joint(a); tot += p;
+    for (let i = 0; i < 9; i++) if (a[i]) sums[i] += p;
+    if (groups) { const key = groupVars.map((g) => a[IDX[g]]).join(""); groups[key] = (groups[key] || 0) + p; }
+  }
+  const post = {}; ORDEN.forEach((v, i) => (post[v] = tot ? sums[i] / tot : 0));
+  if (groups) for (const k in groups) groups[k] /= tot;
+  return { post, pe: tot, groups };
+}
+
+// ============ 3. Estado ============
+let ev = {};           // pistas/supuestos: { variable: 1 | 0 }
+let sel = "ConsultasLentas";
+let countCause = null; // causa elegida en el conteo (null = la más probable)
+let prevPost = null, curPost = null, pe = 1;
+let shown = {};        // valores mostrados (para animar)
+let history = [];
+let tourIdx = -1;
+let evPrev = {}, evCur = {}, pCurKey = JSON.stringify(P), pPrevKey = pCurKey; // para explicar el último paso
+
+const SCEN = [
+  { id: "C1", label: "Sin pistas", ev: {} },
+  { id: "C2", label: "Lento", ev: { ConsultasLentas: 1 } },
+  { id: "C3", label: "Lento + procesador", ev: { ConsultasLentas: 1, CPUAlta: 1 } },
+  { id: "C4", label: "Pregunta del reporte", ev: { ConsultasLentas: 1, CPUAlta: 1, ErroresConexion: 0, AlertaEspacio: 0 } },
+  { id: "C5", label: "Lento + alerta", ev: { ConsultasLentas: 1, AlertaEspacio: 1 } },
+  { id: "C6", label: "Errores", ev: { ErroresConexion: 1 } },
+  { id: "C7", label: "Errores + procesador normal", ev: { ErroresConexion: 1, CPUAlta: 0 } },
+];
+const TOUR = [
+  { t: "Antes de mirar nada", x: "Sin pistas, la red usa las probabilidades iniciales. «Muchos usuarios» va al frente (25 %) solo porque es lo más común. Todavía no se descarta nada.", focus: "CargaAlta" },
+  { t: "Alguien reporta que el sistema está lento", x: "Mira cómo la pista viaja hacia arriba por las flechas. «Tablas sin índices» salta a 54.7 % porque es la causa que más fácil vuelve lento el sistema. «Falla de red» no se mueve: ninguna flecha la conecta con «Sistema lento».", focus: "ConsultasLentas" },
+  { t: "El procesador está al máximo", x: "Suben las causas que cargan al procesador: índices (69.6 %) y muchos usuarios (53.5 %). El disco baja a 15.1 % aunque no tiene flecha hacia el procesador, porque la lentitud ya quedó mejor explicada por otras causas.", focus: "CPUAlta" },
+  { t: "Lo que NO pasa también cuenta", x: "No hay errores al conectarse ni alerta de espacio. Si el disco estuviera lleno, la alerta habría saltado el 90 % de las veces, así que el disco cae a 1.8 %. Conclusión: faltan índices (76.2 %). Es la pregunta del reporte.", focus: "AlertaEspacio" },
+  { t: "Cambiamos una sola pista", x: "El sistema sigue lento, pero ahora sí salta la alerta de espacio. El diagnóstico cambia por completo: disco lleno o lento con 89.8 %. Los índices bajan a 31.3 % porque la lentitud ya tiene explicación. Es el efecto «ya está explicado».", focus: "DiscoSaturado" },
+  { t: "Aparecen errores al conectarse", x: "Dos causas pueden producirlos: muchos usuarios o una falla de red. Como lo de muchos usuarios es más común, va al frente (63.4 %), pero la red sube de 5 % a 34.8 %.", focus: "ErroresConexion" },
+  { t: "…y el procesador está normal", x: "Con muchos usuarios el procesador estaría alto. Como está normal, esa causa baja a 34.0 % y la falla de red pasa al frente (51.3 %). Una sola pista extra cambió la decisión.", focus: "FallaRed" },
+];
+
+// ============ 4. Diagrama SVG ============
+const net = $("#net");
+const R = { causa: 52, inter: 46, pista: 52 };
+const nodeEls = {}, edgeEls = [];
+function el(tag, attrs = {}, parent) { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function buildSvg() {
+  const defs = el("defs", {}, net);
+  [["ah", "arrowhead"], ["ahh", "arrowhead-hot"]].forEach(([id, cls]) => {
+    const m = el("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, defs);
+    el("path", { d: "M0,0 L10,5 L0,10 z", class: cls }, m);
+  });
+  const gE = el("g", {}, net), gN = el("g", {}, net), gL = el("g", {}, net);
+  net._particles = el("g", {}, net);
+  FLECHAS.forEach(([a, b]) => {
+    const A = N[a], B = N[b], ra = R[A.kind] + 6, rb = R[B.kind] + 9;
+    const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+    const bend = 16, mx = (A.x + B.x) / 2 - uy * bend, my = (A.y + B.y) / 2 + ux * bend;
+    // los extremos apuntan hacia el punto de control para que la curva salga del borde del círculo
+    const ax = mx - A.x, ay = my - A.y, la = Math.hypot(ax, ay), bx = mx - B.x, by = my - B.y, lb = Math.hypot(bx, by);
+    const x1 = A.x + ax / la * ra, y1 = A.y + ay / la * ra, x2 = B.x + bx / lb * rb, y2 = B.y + by / lb * rb;
+    const d = `M${x1.toFixed(1)},${y1.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+    const line = el("path", { d, class: "edge", "marker-end": "url(#ah)" }, gE);
+    const hit = el("path", { d, class: "edge-hit" }, gE);
+    el("title", {}, hit).textContent = `${N[a].short} → ${N[b].short}: ${RAZON[a + ">" + b]}`;
+    hit.addEventListener("click", () => select(b));
+    edgeEls.push({ a, b, line, len: line.getTotalLength() });
+  });
+  // notas a mano
+  const n1 = el("text", { x: 14, y: 30, class: "note" }, gL); n1.textContent = "causas: lo que no se ve a simple vista ↓";
+  const n2 = el("text", { x: 14, y: 602, class: "note" }, gL); n2.textContent = "pistas: lo que sí aparece en el monitor ↑";
+  ORDEN.forEach((v) => {
+    const n = N[v], r = R[n.kind];
+    const g = el("g", { class: `node ${n.kind}`, transform: `translate(${n.x},${n.y})`, tabindex: 0, role: "button", "aria-label": n.name }, gN);
+    el("circle", { class: "halo", r: r + 11 }, g);
+    el("circle", { class: "body", r }, g);
+    el("circle", { class: "track", r: r - 9 }, g);
+    const C = 2 * Math.PI * (r - 9);
+    const arc = el("circle", { class: "arc", r: r - 9, "stroke-dasharray": `0 ${C}`, transform: "rotate(-90)" }, g);
+    const pct = el("text", { class: "pct", y: -3 }, g);
+    el("text", { class: "sub", y: 19 }, g).textContent = "Sí";
+    const badge = el("g", { class: "badge", transform: `translate(${r * .72},${-r * .78})`, visibility: "hidden" }, g);
+    el("rect", { x: -20, y: -12, width: 40, height: 24, rx: 12 }, badge);
+    const bt = el("text", {}, badge);
+    // etiqueta: causas arriba, pistas abajo, intermedia a la derecha
+    let lx = n.x, ly, anchor = "middle";
+    if (n.kind === "causa") ly = n.y - r - 18; else if (n.kind === "pista") ly = n.y + r + 30; else { lx = n.x + r + 14; ly = n.y + 6; anchor = "start"; }
+    const lab = el("text", { class: "nlabel", x: lx, y: ly }, gL);
+    lab.style.textAnchor = anchor;
+    if (n.color) {
+      // el punto de color va dentro del mismo texto, así el navegador lo separa del nombre sin tener que medir nada
+      const dot = el("tspan", { fill: `var(${n.color})`, "font-size": "20" }, lab);
+      dot.textContent = "●";
+      const name = el("tspan", { dx: "9" }, lab);
+      name.textContent = n.short;
+    } else {
+      lab.textContent = n.short;
+    }
+    g.addEventListener("click", () => select(v));
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(v); } });
+    nodeEls[v] = { g, arc, pct, badge, bt, C };
+  });
+  // la red siempre cabe completa: en pantallas angostas el texto crece un poco para seguir legible
+  const fit = () => { const w = net.getBoundingClientRect().width || 1000; net.style.setProperty("--lk", Math.min(1.35, Math.max(1, 720 / w)).toFixed(3)); };
+  fit();
+  if ("ResizeObserver" in window) new ResizeObserver(fit).observe(net); else addEventListener("resize", fit);
+}
+
+// partículas: la información viaja desde la pista que cambió por todas las flechas
+function pulse(from) {
+  if (reduced || !from.length) return;
+  const adj = {}; FLECHAS.forEach(([a, b]) => { (adj[a] = adj[a] || []).push(b); (adj[b] = adj[b] || []).push(a); });
+  const depth = {}; const q = [...from]; from.forEach((f) => (depth[f] = 0)); const trips = [];
+  while (q.length) { const u = q.shift(); for (const w of adj[u] || []) { if (depth[w] === undefined) { depth[w] = depth[u] + 1; q.push(w); trips.push([u, w, depth[u]]); } } }
+  trips.forEach(([u, w, d]) => {
+    const e = edgeEls.find((x) => (x.a === u && x.b === w) || (x.a === w && x.b === u));
+    const fwd = e.a === u;
+    const at = (t) => e.line.getPointAtLength(e.len * (fwd ? t : 1 - t));
+    const p0 = at(0);
+    const dots = [0, 1, 2].map((k) => el("circle", { r: 5 - k * 1.2, class: "particle", cx: p0.x, cy: p0.y, opacity: 0 }, net._particles));
+    const t0 = performance.now() + d * 300, dur = 560;
+    e.line.classList.add("hot");
+    const step = (now) => {
+      const t = (now - t0) / dur;
+      dots.forEach((c, k) => {
+        const tk = Math.min(1, Math.max(0, t - k * .12));
+        const ease = 1 - Math.pow(1 - tk, 3);
+        const pt = at(ease); c.setAttribute("cx", pt.x); c.setAttribute("cy", pt.y);
+        c.setAttribute("opacity", t < 0 ? 0 : (tk >= 1 ? 0 : 1 - k * .3));
+      });
+      if (t < 1.4) requestAnimationFrame(step);
+      else { dots.forEach((c) => c.remove()); paintEdges(); const ne = nodeEls[w].g; ne.classList.remove("ping"); void ne.getBBox(); ne.classList.add("ping"); }
+    };
+    requestAnimationFrame(step);
+  });
+}
+function paintEdges() {
+  edgeEls.forEach((e) => {
+    const on = e.a === sel || e.b === sel;
+    e.line.classList.toggle("hot", on);
+    e.line.classList.toggle("dim", !on && !!sel);
+    e.line.setAttribute("marker-end", on ? "url(#ahh)" : "url(#ah)");
+  });
+}
+
+// ============ 5. Animación de números ============
+let animFrom = {}, animTo = {}, animT0 = 0, animOn = false;
+function animateTo(post) {
+  animFrom = { ...shown }; animTo = post; animT0 = performance.now();
+  if (reduced) { shown = { ...post }; drawShown(); return; }
+  if (!animOn) { animOn = true; requestAnimationFrame(tick); }
+}
+function tick(now) {
+  const t = Math.min(1, (now - animT0) / 750), e = 1 - Math.pow(1 - t, 3);
+  for (const v of ORDEN) { const a = animFrom[v] ?? animTo[v]; shown[v] = a + (animTo[v] - a) * e; }
+  drawShown();
+  if (t < 1) requestAnimationFrame(tick); else animOn = false;
+}
+function drawShown() {
+  for (const v of ORDEN) {
+    const n = nodeEls[v], p = shown[v];
+    n.arc.setAttribute("stroke-dasharray", `${(p * n.C).toFixed(2)} ${n.C}`);
+    n.pct.textContent = (p * 100).toFixed(p >= .995 || p < .095 ? 1 : 1) + "%";
+  }
+  CAUSAS.forEach((c) => { const t = document.getElementById("val-" + c); if (t) t.textContent = fmt(shown[c]); });
+}
+
+// ============ 6. Paneles ============
+function buildObs() {
+  const box = $("#obsList");
+  PISTAS.forEach((v) => {
+    const row = document.createElement("div"); row.className = "obs"; row.id = "obs-" + v;
+    row.innerHTML = `<div><div class="name">${N[v].name}</div><div class="q">${N[v].q}</div></div>
+      <div class="seg" role="group" aria-label="${N[v].name}">
+        <button data-v="u" title="No lo sé">?</button><button data-v="1">Sí</button><button data-v="0">No</button></div>`;
+    row.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => setEv(v, b.dataset.v, true)));
+    box.appendChild(row);
+  });
+  const sc = $("#scen");
+  SCEN.forEach((s, i) => {
+    const b = document.createElement("button"); b.className = "chip"; b.id = "sc-" + s.id; b.setAttribute("aria-pressed", "false");
+    b.innerHTML = `<b>${s.id}</b>${s.label}`;
+    b.addEventListener("click", () => { if (tourIdx >= 0) goTour(i); else applyEv(s.ev, s.id); });
+    sc.appendChild(b);
+  });
+  const bars = $("#bars");
+  CAUSAS.forEach((c) => {
+    const d = document.createElement("div"); d.className = "bar"; d.id = "bar-" + c;
+    d.innerHTML = `<div class="top"><span class="nm"><i style="background:var(${N[c].color})"></i>${N[c].name}</span>
+      <span><span class="val" id="val-${c}"></span><span class="delta eq" id="dl-${c}">=</span></span></div>
+      <div class="track-h"><div class="fill-h" id="fill-${c}" style="background:var(${N[c].color});width:0"></div><div class="prior-tick" id="tick-${c}"></div></div>`;
+    d.style.cursor = "pointer"; d.addEventListener("click", () => select(c));
+    bars.appendChild(d);
+  });
+  const cs = $("#countSel");
+  CAUSAS.forEach((c) => {
+    const b = document.createElement("button"); b.id = "cs-" + c; b.innerHTML = `<i style="background:var(${N[c].color})"></i>${N[c].short}`;
+    b.addEventListener("click", () => { countCause = c; renderCount(); }); cs.appendChild(b);
+  });
+  const w = $("#waffle"); for (let i = 0; i < 100; i++) w.appendChild(document.createElement("i"));
+  // laboratorio
+  const lab = $("#labGrid");
+  const sliders = [
+    ...CAUSAS.map((c) => ({ id: "pr-" + c, label: `Qué tan común es: ${N[c].short}`, note: "Probabilidad inicial", min: 1, max: 60, get: () => P.prior[c], set: (x) => (P.prior[c] = x) })),
+    { id: "nor-i", label: "Fuerza de «tablas sin índices» para volverlo lento", note: "Regla Noisy-OR", min: 5, max: 95, get: () => P.nor.i, set: (x) => (P.nor.i = x) },
+    { id: "nor-b", label: "Fuerza de «operaciones en espera»", note: "Regla Noisy-OR", min: 5, max: 95, get: () => P.nor.b, set: (x) => (P.nor.b = x) },
+    { id: "nor-d", label: "Fuerza de «disco lleno o lento»", note: "Regla Noisy-OR", min: 5, max: 95, get: () => P.nor.d, set: (x) => (P.nor.d = x) },
+  ];
+  sliders.forEach((s) => {
+    const d = document.createElement("div"); d.className = "slider";
+    d.innerHTML = `<label for="${s.id}">${s.label}<span id="${s.id}-v"></span></label><input type="range" id="${s.id}" min="${s.min}" max="${s.max}" step="1"><small>${s.note}</small>`;
+    lab.appendChild(d);
+    const inp = d.querySelector("input"), out = d.querySelector("span");
+    const sync = () => { inp.value = Math.round(s.get() * 100); out.textContent = Math.round(s.get() * 100) + " %"; };
+    s.sync = sync; sync();
+    inp.addEventListener("input", () => { s.set(+inp.value / 100); out.textContent = inp.value + " %"; update({ label: "Laboratorio", quiet: true, keepHist: true }); });
+  });
+  lab._sliders = sliders;
+  $("#labReset").addEventListener("click", () => { P = JSON.parse(JSON.stringify(DEFAULT)); lab._sliders.forEach((s) => s.sync()); update({ label: "Valores del reporte", quiet: true }); });
+}
+
+function setEv(v, val, fromUser) {
+  const before = ev[v];
+  if (val === "u") delete ev[v]; else ev[v] = +val;
+  if (before === ev[v]) return;
+  if (fromUser && tourIdx >= 0) exitTour();
+  const lab = ev[v] === undefined ? `${N[v].short}: ?` : `${N[v].short}: ${ev[v] ? "Sí" : "No"}`;
+  update({ changed: [v], label: lab });
+}
+function applyEv(newEv, label) {
+  const changed = ORDEN.filter((v) => ev[v] !== newEv[v]);
+  ev = { ...newEv };
+  update({ changed, label });
+}
+
+function update(opts = {}) {
+  prevPost = curPost;
+  evPrev = evCur; evCur = { ...ev }; pPrevKey = pCurKey; pCurKey = JSON.stringify(P);
+  const r = infer(ev); curPost = r.post; pe = r.pe;
+  if (!prevPost) prevPost = curPost;
+  if (!opts.keepHist || !history.length) {
+    history.push({ label: opts.label || "Inicio", post: CAUSAS.map((c) => curPost[c]) });
+    if (history.length > 12) history.shift();
+  } else history[history.length - 1] = { label: history[history.length - 1].label + " · lab", post: CAUSAS.map((c) => curPost[c]) };
+  animateTo(curPost);
+  if (opts.changed) pulse(opts.changed);
+  renderNodes(); renderObs(); renderVerdict(); renderWhy(); renderCount(); renderDetail(); renderHist(); renderScen();
+  const modified = JSON.stringify(P) !== JSON.stringify(DEFAULT);
+  $("#labFlag").classList.toggle("on", modified);
+}
+
+function renderNodes() {
+  ORDEN.forEach((v) => {
+    const n = nodeEls[v], has = ev[v] !== undefined;
+    n.g.classList.toggle("ev", has); n.g.classList.toggle("sel", v === sel);
+    n.badge.setAttribute("visibility", has ? "visible" : "hidden");
+    if (has) { n.badge.setAttribute("class", "badge " + (ev[v] ? "si" : "no")); n.bt.textContent = ev[v] ? "SÍ" : "NO"; }
+  });
+  paintEdges();
+}
+function renderObs() {
+  PISTAS.forEach((v) => {
+    const row = document.getElementById("obs-" + v), cur = ev[v] === undefined ? "u" : String(ev[v]);
+    row.classList.toggle("set", cur !== "u");
+    row.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === cur ? "true" : "false"));
+  });
+  const k = Object.keys(ev).length;
+  $("#obsCount").textContent = k ? `${k} ${k === 1 ? "dato marcado" : "datos marcados"}` : "Sin pistas marcadas";
+}
+function ranking() { return [...CAUSAS].sort((a, b) => curPost[b] - curPost[a]); }
+function renderVerdict() {
+  const rk = ranking(), top = rk[0], k = Object.keys(ev).length;
+  const strength = curPost[top] >= .7 ? "muy probablemente" : curPost[top] >= .5 ? "probablemente" : "por ahora";
+  $("#vBig").innerHTML = k
+    ? `${strength[0].toUpperCase() + strength.slice(1)} es <span class="mark">${N[top].name.toLowerCase()}</span>`
+    : `Sin pistas, la sospecha inicial es <span class="mark">${N[top].name.toLowerCase()}</span>`;
+  CAUSAS.forEach((c) => {
+    $("#fill-" + c).style.width = (curPost[c] * 100).toFixed(2) + "%";
+    $("#tick-" + c).style.left = `calc(${(P.prior[c] * 100).toFixed(2)}% - 1px)`;
+    const d = curPost[c] - prevPost[c], dl = $("#dl-" + c);
+    dl.className = "delta " + (Math.abs(d) < .0005 ? "eq" : d > 0 ? "up" : "down");
+    dl.textContent = Math.abs(d) < .0005 ? "=" : (d > 0 ? "▲ " : "▼ ") + Math.abs(d * 100).toFixed(1);
+    $("#bar-" + c).classList.toggle("lead", c === top);
+  });
+  // reordena las barras con animación suave (FLIP)
+  const box = $("#bars"), first = {}; CAUSAS.forEach((c) => (first[c] = $("#bar-" + c).getBoundingClientRect().top));
+  rk.forEach((c) => box.appendChild($("#bar-" + c)));
+  if (!reduced) rk.forEach((c) => { const e = $("#bar-" + c), dy = first[c] - e.getBoundingClientRect().top; if (dy) { e.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: 500, easing: "cubic-bezier(.2,.8,.2,1)" }); } });
+  $("#action").innerHTML = `<b>Qué conviene revisar primero:</b> ${N[top].act}`;
+}
+
+// ---- utilidades para mostrar las cuentas ----
+const pc1 = (x) => (x * 100).toFixed(1) + " %";
+const pEv = (e) => infer(e).pe;                       // probabilidad de que pase todo lo que hay en e
+const evName = (k, e = ev) => `«${N[k].short} = ${e[k] ? "Sí" : "No"}»`;
+function topCombo(e) {                                 // el escenario completo más probable que coincide con e
+  let best = -1, arr = null; const a = new Array(9);
+  for (let m = 0; m < 512; m++) {
+    for (let i = 0; i < 9; i++) a[i] = (m >> (8 - i)) & 1;
+    let ok = true; for (const k in e) if (a[IDX[k]] !== e[k]) { ok = false; break; }
+    if (!ok) continue;
+    const p = joint(a); if (p > best) { best = p; arr = a.slice(); }
+  }
+  return { p: best, a: arr };
+}
+function factor(v, a) {                                // el número de la tabla que aporta cada variable
+  const val = a[IDX[v]], q = pSi(v, a), f = val ? q : 1 - q, par = PADRES[v] || [];
+  const cond = par.length ? "si " + par.map((p) => `${N[p].short.toLowerCase()}: ${a[IDX[p]] ? "Sí" : "No"}`).join(", ") : "probabilidad inicial";
+  return { f, html: `<span class="fx"><b>${N[v].short}: ${val ? "Sí" : "No"}</b><small>${cond}</small><i>${f.toFixed(2)}</i></span>` };
+}
+function stepInfo() {                                  // ¿el último paso solo agregó pistas?
+  const added = Object.keys(evCur).filter((k) => evPrev[k] === undefined);
+  const isAdd = pPrevKey === pCurKey && added.length > 0 && Object.keys(evPrev).every((k) => evCur[k] === evPrev[k]);
+  return { added, isAdd };
+}
+
+function renderWhy() {
+  const keys = Object.keys(ev), lead = $("#whyLead"), list = $("#whyList");
+  list.innerHTML = "";
+  const base = infer({}).post;
+  const st = stepInfo();
+  const top = ranking()[0];
+  const nKeep = 512 / Math.pow(2, keys.length);
+  const tc = topCombo(ev), facs = ORDEN.map((v) => factor(v, tc.a));
+  let leadHtml;
+  if (!keys.length) {
+    leadHtml = `<p class="lead-why">Aún no marcas ninguna pista. Lo que ves son las <b>probabilidades iniciales</b> (sección 7 del reporte): qué tan común es cada causa en general. «${N[top].short}» va al frente solo porque es la más frecuente. Marca una pista en «Lo que ves» o elige una consulta C1–C7 y aquí aparecerá la cuenta completa.</p>`;
+  } else {
+    const paso = st.isAdd ? `<b>Último paso:</b> marcaste ${st.added.map((k) => evName(k)).join(" y ")}. ` : `<b>Último paso:</b> cambiaste las pistas o los supuestos. `;
+    leadHtml = `<p class="lead-why">${paso}Con todo lo que marcaste (${keys.map((k) => evName(k)).join(", ")}), la red apunta a <b>${N[top].name.toLowerCase()}</b> con ${fmt(curPost[top])}. Abajo está la cuenta de cada causa, con los números reales.</p>`;
+  }
+  leadHtml += `<details class="how" ${keys.length ? "open" : ""}><summary>Cómo hace la cuenta la red, paso a paso</summary><ol class="how-steps">
+    <li><b class="hd">Se imaginan todos los escenarios posibles.</b> Hay 9 variables y cada una puede ser Sí o No, así que existen 2 × 2 × … × 2 = 2⁹ = 512 escenarios. La probabilidad de un escenario se obtiene <b>multiplicando 9 números</b> de las tablas del reporte (sección 8), uno por variable. Por ejemplo, el escenario más probable ${keys.length ? "que coincide con tus pistas" : ""} es:
+      <div class="combo">${facs.map((f) => f.html).join("")}</div>
+      <div class="ops"><div>${facs.map((f) => f.f.toFixed(2)).join(" × ")}</div><div>= <b>${tc.p.toFixed(5)}</b></div></div></li>
+    <li><b class="hd">Se quedan solo los escenarios que coinciden con lo que ves.</b> ${keys.length ? `Con ${keys.length} ${keys.length === 1 ? "dato marcado" : "datos marcados"} quedan ${nKeep} de los 512 escenarios. Al sumar sus probabilidades sale qué tan común es ver justo lo que marcaste:` : "Como no hay pistas, se quedan los 512 y suman 1 (100 %)."}
+      ${keys.length ? `<div class="ops"><div>P(pistas) = suma de los ${nKeep} escenarios = <b>${pe.toFixed(4)}</b></div><div class="txt">O sea, lo que marcaste pasa en ${pc1(pe)} de los momentos.</div></div>` : ""}</li>
+    <li><b class="hd">Se ve qué parte de esos escenarios tiene cada causa.</b> Se suman solo los escenarios donde la causa está presente y se divide entre el total del paso 2:
+      <div class="ops"><div>P(causa | pistas) = P(causa y pistas) ÷ P(pistas)</div></div>
+      Esa división es el <b>Teorema de Bayes</b>. Es lo mismo que hace la función <code>calcular_a_mano()</code> del programa y lo que se comprobó a mano en la sección 9 del reporte.</li>
+  </ol></details>`;
+  lead.innerHTML = leadHtml;
+  if (!keys.length) {
+    CAUSAS.forEach((c) => list.appendChild(whyItem(c, `${N[c].short}: ${fmt(base[c])}`, N[c].prior, [], null, "")));
+    return;
+  }
+  const without = {}; keys.forEach((k) => { const e2 = { ...ev }; delete e2[k]; without[k] = infer(e2).post; });
+  const order = [...CAUSAS].sort((a, b) => Math.abs(curPost[b] - base[b]) - Math.abs(curPost[a] - base[a]));
+  order.forEach((c, idx) => {
+    if (ev[c] !== undefined) { list.appendChild(whyItem(c, `${N[c].short}: la fijaste en «${ev[c] ? "Sí" : "No"}»`, "Es un supuesto tuyo, así que la red no la calcula: la usa para recalcular todo lo demás.", [], null, "")); return; }
+    const d0 = curPost[c] - base[c];
+    const contrib = keys.filter((k) => k !== c).map((k) => ({ k, d: curPost[c] - without[k][c] })).sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+    let title, text, tag = null;
+    if (Math.abs(d0) < .0005 && contrib.every((x) => Math.abs(x.d) < .0005)) {
+      title = `${N[c].short} no se movió (${fmt(curPost[c])})`;
+      text = "Ninguno de los datos que marcaste está conectado con ella por las flechas del diagrama, así que no dicen nada sobre esta causa.";
+    } else {
+      title = `${N[c].short}: de ${fmt(base[c])} a ${fmt(curPost[c])}`;
+      const main = contrib.find((x) => Math.abs(x.d) >= .0005);
+      if (main) {
+        const isDesc = desc(c).has(main.k);
+        if (main.d > 0 && ev[main.k] === 1 && isDesc) text = `Subió sobre todo por ${evName(main.k)}: esta causa provoca esa pista, así que verla la vuelve más sospechosa.`;
+        else if (main.d > 0 && ev[main.k] === 0) text = `Subió porque ${evName(main.k)} descarta otras causas que la habrían producido; al quitar competidores, esta gana terreno.`;
+        else if (main.d > 0) text = `Subió por ${evName(main.k)}, que hace más creíble el escenario en el que esta causa encaja.`;
+        else if (main.d < 0 && ev[main.k] === 0 && isDesc) text = `Bajó por ${evName(main.k)}: si esta causa estuviera presente, normalmente veríamos esa pista. Como no apareció, pierde fuerza. Saber lo que NO pasa también es información.`;
+        else if (main.d < 0 && ev[main.k] === 1 && !isDesc) {
+          const rival = CAUSAS.filter((x) => x !== c && ev[x] === undefined).sort((a, b) => (curPost[b] - without[main.k][b]) - (curPost[a] - without[main.k][a]))[0];
+          text = `Bajó al aparecer ${evName(main.k)}: esa pista la explica mejor «${N[rival].short}», y con ella la lentitud o los errores ya tienen explicación. Esta causa deja de ser necesaria.`;
+          tag = "Efecto «ya está explicado»";
+        } else if (main.d < 0 && ev[main.k] === 1) {
+          text = `Bajó porque ${evName(main.k)} se explica mejor con otra causa.`;
+          tag = "Efecto «ya está explicado»";
+        } else text = `Se movió principalmente por ${evName(main.k)}.`;
+      } else text = "Cambió por la combinación de varias pistas a la vez.";
+    }
+    list.appendChild(whyItem(c, title, text, contrib.filter((x) => Math.abs(x.d) >= .0005).slice(0, 4), tag, calcFor(c, st), idx === 0));
+  });
+}
+// la operación completa de una causa
+function calcFor(c, st) {
+  const nm = N[c].short, pcE = pEv({ ...ev, [c]: 1 });
+  let h = "";
+  if (st.isAdd) {
+    const p0 = infer(evPrev).post[c];
+    const a = pEv({ ...evCur, [c]: 1 }) / pEv({ ...evPrev, [c]: 1 });
+    const b = pEv({ ...evCur, [c]: 0 }) / pEv({ ...evPrev, [c]: 0 });
+    const num = p0 * a, den = num + (1 - p0) * b, r = a / b;
+    const what = st.added.length === 1 ? evName(st.added[0]) : "lo nuevo que marcaste";
+    const ratio = Math.abs(r - 1) < .01
+      ? `Con o sin esta causa, ${what} es igual de probable. Por eso <b>no cambia</b>.`
+      : r > 1 ? `Con esta causa presente, ${what} es <b>${r.toFixed(1)} veces más probable</b> que sin ella. Por eso <b>sube</b>.`
+              : `Sin esta causa, ${what} es <b>${(1 / r).toFixed(1)} veces más probable</b> que con ella. Por eso <b>baja</b>.`;
+    h += `<div class="ops"><div class="lbl">Último paso (Bayes)</div>
+      <div class="txt">Antes de este paso, «${nm}» tenía <b>${pc1(p0)}</b>.</div>
+      <div class="txt">Si «${nm}» está presente, ${what} aparece ${pc1(a)} de las veces; si no está, ${pc1(b)}.</div>
+      <div>${p0.toFixed(3)} × ${a.toFixed(3)} ÷ (${p0.toFixed(3)} × ${a.toFixed(3)} + ${(1 - p0).toFixed(3)} × ${b.toFixed(3)})</div>
+      <div>= ${num.toFixed(4)} ÷ ${den.toFixed(4)} = <b>${pc1(num / den)}</b></div>
+      <div class="why-ratio">${ratio}</div></div>`;
+  }
+  h += `<div class="ops"><div class="lbl">La cuenta desde cero</div>
+    <div>P(${nm} | pistas) = P(${nm} y pistas) ÷ P(pistas)</div>
+    <div>= ${pcE.toFixed(4)} ÷ ${pe.toFixed(4)} = <b>${pc1(pcE / pe)}</b></div>
+    <div class="txt">El ${pc1(pcE / pe)} es la parte de los escenarios con tus pistas en los que «${nm}» está presente.</div></div>`;
+  return h;
+}
+function whyItem(c, title, text, contrib, tag, calc, open) {
+  const d = document.createElement("div"); d.className = "why-item";
+  d.innerHTML = `<div class="stripe" style="background:var(${N[c].color})"></div><div><h3>${title}</h3><p>${text}</p>
+    ${tag ? `<span class="tag">${tag}</span>` : ""}
+    ${contrib.length ? `<div class="contrib">${contrib.map((x) => `<span class="pill ${x.d > 0 ? "up" : "down"}" title="Cuánto cambia si quitas esa pista">${N[x.k].short} = ${ev[x.k] ? "Sí" : "No"}: <span class="mono">${pts(x.d)}</span> pts</span>`).join("")}</div>` : ""}
+    ${calc ? `<details class="calc" ${open ? "open" : ""}><summary>Ver la operación</summary>${calc}</details>` : ""}</div>`;
+  return d;
+}
+
+function renderCount() {
+  const c = countCause || ranking()[0], nm = N[c].short;
+  CAUSAS.forEach((x) => document.getElementById("cs-" + x).setAttribute("aria-pressed", x === c ? "true" : "false"));
+  const T = 10000, k = Object.keys(ev).length, pC = infer({}).post[c];
+  const nf = (x) => x >= 100 ? Math.round(x).toLocaleString("es-MX") : x >= 10 ? x.toFixed(0) : x.toFixed(1);
+  let fill, html;
+  if (ev[c] !== undefined) {
+    fill = ev[c] ? 100 : 0;
+    html = `<p>Fijaste «${nm}» en «${ev[c] ? "Sí" : "No"}» como supuesto, así que no hay nada que contar: vale ${ev[c] ? "100 %" : "0 %"}. Elige otra causa arriba.</p>`;
+  } else if (!k) {
+    fill = Math.round(pC * 100);
+    html = `<p>Imagina <b>10,000 momentos</b> del servidor. Sin pistas, «${nm}» está presente en ${T.toLocaleString("es-MX")} × ${pc1(pC)} = <b>${nf(T * pC)}</b> de ellos.</p>
+      <p class="eq">${nf(T * pC)} ÷ 10,000 = ${fmt(pC)}</p>
+      <p class="small">Todavía no hay nada que filtrar. Marca una pista y aquí verás cómo se cuentan los momentos que coinciden con ella: esa cuenta es el Teorema de Bayes.</p>`;
+  } else {
+    const pEC = pEv({ ...ev, [c]: 1 }) / pC, pEN = pEv({ ...ev, [c]: 0 }) / (1 - pC);
+    const rnd = (x) => x >= 10 ? Math.round(x) : Math.round(x * 10) / 10;   // conteos redondeados para que la suma cuadre
+    const nC = T * pC, nN = T - nC, A = rnd(nC * pEC), B = rnd(nN * pEN), post = (nC * pEC) / (nC * pEC + nN * pEN);
+    fill = Math.round(post * 100);
+    html = `<p>Imagina <b>10,000 momentos</b> del servidor y sepáralos en dos grupos: con «${nm}» y sin ella. Después cuenta en cuántos de cada grupo pasa justo lo que marcaste.</p>
+      <div class="tree">
+        <div class="t-root">10,000 momentos</div>
+        <div class="t-row">
+          <div class="t-node" style="border-left-color:var(${N[c].color})"><small>con «${nm}»</small><b>${nf(nC)}</b><span>10,000 × ${pc1(pC)}</span></div>
+          <div class="t-node"><small>sin «${nm}»</small><b>${nf(nN)}</b><span>10,000 × ${pc1(1 - pC)}</span></div>
+        </div>
+        <div class="t-row">
+          <div class="t-node hit" style="border-left-color:var(${N[c].color})"><small>…y además pasa lo que marcaste</small><b>${nf(A)}</b><span>${nf(nC)} × ${pc1(pEC)}</span></div>
+          <div class="t-node"><small>…y además pasa lo que marcaste</small><b>${nf(B)}</b><span>${nf(nN)} × ${pc1(pEN)}</span></div>
+        </div>
+        <div class="t-res">Lo que marcaste pasa en ${nf(A)} + ${nf(B)} = <b>${nf(A + B)}</b> momentos. De ellos, ${nf(A)} tienen «${nm}»:<br><span class="mono">${nf(A)} ÷ ${nf(A + B)} = <b>${pc1(post)}</b></span></div>
+      </div>
+      <div class="bayes"><b class="l">La misma cuenta, escrita como fórmula</b>P(${nm} | pistas) = P(pistas | ${nm}) × P(${nm}) ÷ P(pistas)<br>= ${pEC.toFixed(3)} × ${pC.toFixed(3)} ÷ ${((A + B) / T).toFixed(4)} = <b>${pc1(post)}</b></div>
+      <p class="small"><b>¿Por qué es el Teorema de Bayes «contado»?</b> La fórmula multiplica qué tan común es la causa (${pc1(pC)}) por qué tan seguido produce lo que ves (${pc1(pEC)}), y divide entre qué tan seguido pasa lo que ves en total (${pc1((A + B) / T)}). El árbol hace exactamente eso, pero con momentos en vez de porcentajes: si divides cada número del árbol entre 10,000 obtienes los de la fórmula. Los 100 cuadritos son los momentos en que pasa lo que marcaste; los coloreados son los que además tienen «${nm}».</p>`;
+  }
+  const cells = $("#waffle").children;
+  for (let i = 0; i < 100; i++) {
+    const on = i < fill;
+    cells[i].style.transitionDelay = reduced ? "0ms" : (i * 7) + "ms";
+    cells[i].style.backgroundColor = on ? `var(${N[c].color})` : "";
+    cells[i].style.borderColor = on ? `var(${N[c].color})` : "";
+  }
+  $("#countText").innerHTML = html;
+}
+
+function select(v) { sel = v; renderNodes(); renderDetail(); }
+function renderDetail() {
+  const v = sel, n = N[v], box = $("#detailBody");
+  const kindName = { causa: "Causa", inter: "Causa intermedia", pista: "Pista observable" }[n.kind];
+  const parents = PADRES[v] || [], kids = HIJOS[v] || [];
+  let html = `<div class="detail-head"><span class="kind ${n.kind}">${kindName}</span><h3>${n.name}</h3>
+      <span class="mono" style="margin-left:auto;font-weight:600">ahora: ${fmt(curPost[v])}</span></div>
+    <p>${n.desc}</p><p style="color:var(--muted)">${n.why}</p>`;
+  if (!parents.length) {
+    html += `<div class="links"><div><b>Probabilidad inicial: ${fmt(P.prior[v])}.</b> ${n.prior}</div></div>`;
+  } else {
+    const r = infer(ev, parents), rows = [];
+    const best = Object.entries(r.groups).sort((x, y) => y[1] - x[1])[0][0];
+    for (let m = 0; m < (1 << parents.length); m++) {
+      const bits = parents.map((_, i) => 1 - ((m >> (parents.length - 1 - i)) & 1)); // Sí primero
+      const a = new Array(9).fill(0); parents.forEach((p, i) => (a[IDX[p]] = bits[i]));
+      const q = pSi(v, a), w = r.groups[bits.join("")] || 0;
+      rows.push(`<tr class="${bits.join("") === best ? "best" : ""}">${bits.map((b) => `<td class="yn ${b ? "s" : "n"}">${b ? "Sí" : "No"}</td>`).join("")}<td class="num">${q.toFixed(2)}</td>
+        <td><div class="mini"><span style="width:${(w * 100).toFixed(1)}%"></span></div></td><td class="num">${fmt(w)}</td></tr>`);
+    }
+    html += `<span class="sub-lbl">tabla de probabilidad condicional</span>
+      <div class="cpt-wrap"><table class="cpt"><thead><tr>${parents.map((p) => `<th>${N[p].short}</th>`).join("")}<th>P(Sí)</th><th colspan="2">Qué tan probable es esa fila ahora</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>
+      <p style="font-size:13px;color:var(--muted)">La fila marcada en amarillo es la combinación de causas más creíble con las pistas actuales: la que la red está «usando» más.</p>`;
+    if (v === "ConsultasLentas") html += `<p style="font-size:13.5px">Esta tabla sale de la regla <b>Noisy-OR</b>: el sistema sigue rápido solo si ninguna causa presente lo vuelve lento. Ejemplo: sin índices y disco lleno → 1 − 0.97 × ${(1 - P.nor.i).toFixed(2)} × ${(1 - P.nor.d).toFixed(2)} = ${round2(1 - .97 * (1 - P.nor.i) * (1 - P.nor.d)).toFixed(2)}.</p>`;
+  }
+  const lk = [...parents.map((p) => `<div><b>${N[p].short} → ${n.short}:</b> ${RAZON[p + ">" + v]}</div>`), ...kids.map((h) => `<div><b>${n.short} → ${N[h].short}:</b> ${RAZON[v + ">" + h]}</div>`)];
+  html += `<span class="sub-lbl">sus flechas</span><div class="links">${lk.join("")}</div>`;
+  const cur = ev[v] === undefined ? "u" : String(ev[v]);
+  html += `<div class="suppose"><span>${n.kind === "pista" ? "Marcar esta pista:" : "Suponer que es cierto («¿y si…?»):"}</span>
+    <div class="seg" role="group" aria-label="Fijar ${n.name}">
+      <button data-v="u" aria-pressed="${cur === "u"}">?</button><button data-v="1" aria-pressed="${cur === "1"}">Sí</button><button data-v="0" aria-pressed="${cur === "0"}">No</button></div></div>`;
+  box.innerHTML = html;
+  box.querySelectorAll(".suppose button").forEach((b) => b.addEventListener("click", () => setEv(v, b.dataset.v, true)));
+}
+
+function renderHist() {
+  const svg = $("#histSvg"); svg.innerHTML = "";
+  const W = 520, H = 220, L = 40, Rr = 14, T = 12, B = 30, iw = W - L - Rr, ih = H - T - B;
+  const n = history.length, xs = (i) => L + (n === 1 ? iw / 2 : (i * iw) / (n - 1)), ys = (p) => T + ih - p * ih;
+  [0, .25, .5, .75, 1].forEach((g) => {
+    el("line", { x1: L, x2: W - Rr, y1: ys(g), y2: ys(g), stroke: "var(--line)", "stroke-width": 1 }, svg);
+    const t = el("text", { x: L - 8, y: ys(g) + 4, "text-anchor": "end", "font-size": 11, fill: "var(--muted)", "font-family": "var(--f-mono)" }, svg); t.textContent = g * 100 + "%";
+  });
+  history.forEach((h, i) => { const t = el("text", { x: xs(i), y: H - 10, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)", "font-family": "var(--f-mono)" }, svg); t.textContent = i + 1; });
+  CAUSAS.forEach((c, ci) => {
+    const d = history.map((h, i) => `${i ? "L" : "M"}${xs(i).toFixed(1)},${ys(h.post[ci]).toFixed(1)}`).join(" ");
+    el("path", { d, fill: "none", stroke: `var(${N[c].color})`, "stroke-width": 2.5, "stroke-linejoin": "round" }, svg);
+    history.forEach((h, i) => el("circle", { cx: xs(i), cy: ys(h.post[ci]), r: i === n - 1 ? 4.5 : 3, fill: `var(${N[c].color})` }, svg));
+  });
+  $("#histLegend").innerHTML = CAUSAS.map((c) => `<span><i style="background:var(${N[c].color})"></i>${N[c].short}</span>`).join("");
+  $("#histSteps").innerHTML = `<ol start="${1}">${history.map((h) => `<li>${h.label}</li>`).join("")}</ol>
+    <button class="textbtn" id="histClear">Limpiar historial</button>`;
+  $("#histClear").addEventListener("click", () => { history = [{ label: "Estado actual", post: CAUSAS.map((c) => curPost[c]) }]; renderHist(); });
+}
+function renderScen() {
+  const key = JSON.stringify(Object.keys(ev).sort().map((k) => [k, ev[k]]));
+  SCEN.forEach((s) => {
+    const k2 = JSON.stringify(Object.keys(s.ev).sort().map((k) => [k, s.ev[k]]));
+    document.getElementById("sc-" + s.id).setAttribute("aria-pressed", key === k2 ? "true" : "false");
+  });
+}
+
+// ============ 7. Recorrido guiado ============
+function goTour(i) {
+  tourIdx = Math.max(0, Math.min(TOUR.length - 1, i));
+  const s = TOUR[tourIdx];
+  $("#tour").hidden = false;
+  $("#mTour").setAttribute("aria-pressed", "true"); $("#mExplore").setAttribute("aria-pressed", "false");
+  $("#tourStep").textContent = `Paso ${tourIdx + 1} de ${TOUR.length} · ${SCEN[tourIdx].id}`;
+  $("#tourTitle").textContent = s.t; $("#tourText").textContent = s.x;
+  $("#tourDots").innerHTML = TOUR.map((_, k) => `<i class="${k <= tourIdx ? "on" : ""}"></i>`).join("");
+  $("#tourPrev").disabled = tourIdx === 0;
+  $("#tourNext").textContent = tourIdx === TOUR.length - 1 ? "Terminar" : "Siguiente";
+  sel = s.focus;
+  applyEv(SCEN[tourIdx].ev, SCEN[tourIdx].id);
+  if (i === 0 || $("#red").getBoundingClientRect().top < 0) $("#red").scrollIntoView({ block: "start" });
+}
+function exitTour() {
+  tourIdx = -1; $("#tour").hidden = true;
+  $("#mTour").setAttribute("aria-pressed", "false"); $("#mExplore").setAttribute("aria-pressed", "true");
+}
+$("#mTour").addEventListener("click", () => goTour(0));
+$("#mExplore").addEventListener("click", exitTour);
+$("#tourNext").addEventListener("click", () => (tourIdx === TOUR.length - 1 ? exitTour() : goTour(tourIdx + 1)));
+$("#tourPrev").addEventListener("click", () => goTour(tourIdx - 1));
+$("#tourExit").addEventListener("click", exitTour);
+document.addEventListener("keydown", (e) => {
+  if (tourIdx < 0 || e.target.closest("input")) return;
+  if (e.key === "ArrowRight") goTour(tourIdx + 1); else if (e.key === "ArrowLeft") goTour(tourIdx - 1); else if (e.key === "Escape") exitTour();
+});
+const clearAll = () => { if (tourIdx >= 0) exitTour(); applyEv({}, "Pistas borradas"); };
+$("#clearAll").addEventListener("click", clearAll);
+$("#quickClear").addEventListener("click", clearAll);
+$("#quickReset").addEventListener("click", () => $("#labReset").click());
+// resalta en la barra la sección que se está viendo
+const links = [...document.querySelectorAll("#jump a")];
+if ("IntersectionObserver" in window) {
+  const io = new IntersectionObserver((ents) => {
+    ents.forEach((en) => { if (en.isIntersecting) links.forEach((a) => a.classList.toggle("on", a.getAttribute("href") === "#" + en.target.id)); });
+  }, { rootMargin: "-30% 0px -60% 0px" });
+  links.forEach((a) => { const t = document.querySelector(a.getAttribute("href")); if (t) io.observe(t); });
+}
+
+
+// ============ Tabla del reporte (sección 09) ============
+const RES = {
+  C1: ["Ninguna", [25.0, 20.0, 10.0, 5.0]],
+  C2: ["Sistema lento", [36.4, 54.7, 22.7, 5.0]],
+  C3: ["Lento + procesador al máximo", [53.5, 69.6, 15.1, 5.0]],
+  C4: ["Lento + procesador al máximo, sin errores ni alerta", [44.3, 76.2, 1.8, 0.5]],
+  C5: ["Lento + alerta de espacio", [28.8, 31.3, 89.8, 5.0]],
+  C6: ["Errores al conectarse", [63.4, 20.0, 10.0, 34.8]],
+  C7: ["Errores + procesador normal", [34.0, 7.6, 10.0, 51.3]],
+};
+(() => {
+  const t = $("#qtbl");
+  let h = `<thead><tr><th>Consulta</th><th>Pistas</th>` +
+    CAUSAS.map((c) => `<th class="n"><i style="background:var(${N[c].color})"></i>${N[c].short}</th>`).join("") + `<th></th></tr></thead><tbody>`;
+  Object.entries(RES).forEach(([id, [pistas, vals]]) => {
+    const mx = Math.max(...vals);
+    h += `<tr class="${id === "C4" ? "hl" : ""}"><td class="cid">${id}</td><td>${pistas}</td>` +
+      vals.map((v) => `<td class="n${v === mx ? " win" : ""}">${v.toFixed(1)} %</td>`).join("") +
+      `<td><button data-c="${id}">Ver en la red</button></td></tr>`;
+  });
+  t.innerHTML = h + "</tbody>";
+  t.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-c]"); if (!b) return;
+    const chip = document.getElementById("sc-" + b.dataset.c); if (chip) chip.click();
+    document.getElementById("red").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+})();
+
+
+// ============ Descargas (secciones 09 y 10) ============
+(() => {
+  const box = document.getElementById("srcBox");
+  box.addEventListener("toggle", async () => {
+    if (!box.open || box.dataset.ok) return;
+    try { const r = await fetch("descargas/red_bayesiana_bd.py"); document.getElementById("srcPre").textContent = await r.text(); box.dataset.ok = 1; }
+    catch (e) { document.getElementById("srcPre").textContent = "No se pudo cargar el código en esta vista."; }
+  });
+})();
+
+// ============ 8. Arranque ============
+buildSvg(); buildObs();
+// arranca mostrando la consulta C2 para que la página no se vea vacía
+ORDEN.forEach((v) => (shown[v] = 0));
+ev = { ConsultasLentas: 1 };
+update({ label: "C2 (ejemplo inicial)", changed: ["ConsultasLentas"] });
+window.__red = { infer, setEv: (v, x) => setEv(v, x, true) };
+})();
+</script>
+
+</body>
+</html>

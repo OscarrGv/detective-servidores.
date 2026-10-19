@@ -1,0 +1,6 @@
+{
+  "name": "detective-servidores",
+  "private": true,
+  "scripts": { "build": "bash build.sh" },
+  "dependencies": { "docx": "9.7.1" }
+}

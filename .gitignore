@@ -1,0 +1,5 @@
+node_modules/
+public/
+.venv/
+raw.docx
+resultados/
