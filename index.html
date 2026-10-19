@@ -349,6 +349,7 @@ ol.steps5 li p { margin: 0 0 3px; }
 table.map { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.map td { padding: 6px; border-bottom: 1px dashed var(--hair); vertical-align: top; }
 table.map td:first-child { font-family: var(--f-mono); }
+.why4 { border-left: 3px solid var(--mark); background: var(--paper-2); padding: 7px 10px; font-size: 13.5px; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -974,15 +975,21 @@ function renderWhy() {
     return;
   }
   const tc = topCombo(ev), facs = ORDEN.map((v) => factor(v, tc.a)), nKeep = 512 / Math.pow(2, keys.length);
+  const bt = bayesOf(top), pAB = bt.pBA * bt.pA, labMod = JSON.stringify(P) !== JSON.stringify(DEFAULT);
+  const priors = CAUSAS.map((c) => `${N[c].short.toLowerCase()} ${pc1(P.prior[c])}`).join(", ");
   lead.innerHTML = `<p class="lead-why">Con lo que marcaste (${marked()}), la red apunta a <b>${N[top].name.toLowerCase()}</b> con ${fmt(curPost[top])}. Cada causa de abajo dice de cuánto a cuánto cambió y por qué. Si quieres ver la operación, abre <b>«Ver la cuenta»</b> en la causa que te interese.</p>
-    <details class="more"><summary>¿De dónde saca la red los números de las cuentas?</summary><div class="bx">
-      <p>Cada cuenta usa tres datos: P(A), P(B | A) y P(B). El primero sale directo de la sección 7 del reporte. Los otros dos la red los calcula con las tablas de la sección 8, así:</p>
-      <p><b>1. Imagina un momento cualquiera del servidor.</b> En ese momento cada una de las 9 variables está en Sí o en No. Hay 2⁹ = 512 momentos distintos posibles.</p>
-      <p><b>2. Qué tan probable es un momento</b> = multiplicar un número de las tablas por cada variable. Por ejemplo, el momento más probable que coincide con lo que marcaste es este:</p>
+    <details class="more"><summary>¿De dónde salen los tres datos de cada cuenta?</summary><div class="bx">
+      <p>Cada «Ver la cuenta» usa tres datos: <b>P(A)</b>, <b>P(B | A)</b> y <b>P(B)</b>. Aquí se explica de dónde sale cada uno, para que puedas comprobarlos.</p>
+      <p><b>P(A), la probabilidad inicial de la causa.</b> No se calcula: el equipo la fijó en la sección 7 del reporte («Probabilidades»), según qué tan seguido ocurre cada problema en un servidor típico. Los valores son: ${priors}.${labMod ? " <i>(Ahora mismo están cambiados desde el Laboratorio, sección 08.)</i>" : ""}</p>
+      <p><b>P(B) y P(B | A).</b> Estos no aparecen escritos en el reporte. La red los calcula con las tablas de probabilidad condicional de la sección 8 del reporte (las mismas que ves en la sección 06 de esta página al tocar un círculo). Lo hace en tres pasos:</p>
+      <p><b>1. Imagina un momento cualquiera del servidor.</b> En ese momento cada una de las 9 variables está en Sí o en No. Como cada una tiene 2 opciones, hay 2⁹ = 512 momentos distintos posibles.</p>
+      <p><b>2. Calcula qué tan probable es cada momento.</b> Se multiplica un número de las tablas por cada variable. Por ejemplo, el momento más probable que coincide con lo que marcaste es este:</p>
       <div class="combo">${facs.map((f) => f.html).join("")}</div>
       <div class="ops">${facs.map((f) => f.f.toFixed(2)).join(" × ")} = ${tc.p.toFixed(5)}</div>
-      <p><b>3. Se suman los momentos que importan.</b> De los 512, en ${nKeep} pasa justo lo que marcaste. Al sumarlos sale <b>P(B) = ${pe.toFixed(4)}</b>. Si solo se suman los que además tienen la causa, y se divide entre P(A), sale <b>P(B | A)</b>.</p>
-      <p class="see">Es lo mismo que hace la función <code>calcular_a_mano()</code> del programa.</p>
+      <p><i>¿Para qué sirve ese ${tc.p.toFixed(5)}?</i> Dice qué tan seguido ocurre exactamente ese momento: más o menos ${(tc.p * 100).toFixed(1)} de cada 100 momentos del servidor se ven así. Por sí solo no responde nada, pero es una de las piezas que se suman en el paso 3.</p>
+      <p><b>3. Suma solo los momentos que coinciden con lo que ves.</b> De los 512 momentos, en ${nKeep} pasa justo lo que marcaste; los otros ${512 - nKeep} se descartan porque contradicen lo que ves. Al sumar las probabilidades de esos ${nKeep} momentos sale <b>P(B) = ${pe.toFixed(4)}</b>: lo que marcaste pasa en ${pc1(pe)} del tiempo.</p>
+      <p>Para <b>P(B | A)</b> se suman solo los momentos que, además, tienen la causa, y el resultado se divide entre P(A). Por ejemplo, con «${N[top].short}»: los momentos con la causa y con lo que marcaste suman ${pAB.toFixed(4)}, y ${pAB.toFixed(4)} ÷ ${bt.pA.toFixed(3)} = <b>${bt.pBA.toFixed(3)}</b>. Ese es el ${pc1(bt.pBA)} que aparece en su cuenta.</p>
+      <p class="why4"><b>¿Para qué sirve saber esto?</b> Para comprobar que ningún porcentaje de la página es inventado: todos salen solo de los números del reporte (secciones 7 y 8). Si cambias uno de esos números en el Laboratorio (sección 08), todas las cuentas cambian a partir de él. Es lo mismo que hace la función <code>calcular_a_mano()</code> del programa.</p>
     </div></details>`;
   const without = {}; keys.forEach((k) => { const e2 = { ...ev }; delete e2[k]; without[k] = infer(e2).post; });
   const order = [...CAUSAS].sort((a, b) => Math.abs(curPost[b] - base[b]) - Math.abs(curPost[a] - base[a]));
@@ -1023,11 +1030,15 @@ function calcFor(c) {
   if (Math.abs(b.f - 1) < .01) plain = `Lo que marcaste pasa igual de seguido con «${nm}» (${pc1(b.pBA)}) que en general (${pc1(b.pB)}). No dice nada sobre esta causa, así que se queda en ${pc1(b.pA)}.`;
   else if (b.f > 1) plain = `Cuando hay «${nm}», lo que marcaste pasa ${pc1(b.pBA)} de las veces; en general, solo ${pc1(b.pB)}. Es decir, es <b>${b.f.toFixed(1)} veces más común con esta causa</b>. Por eso la sospecha se multiplica por ese número: ${pc1(b.pA)} × ${b.f.toFixed(2)} = <b>${pc1(b.post)}</b>.`;
   else plain = `Cuando hay «${nm}», lo que marcaste pasa solo ${pc1(b.pBA)} de las veces, contra ${pc1(b.pB)} en general. Con esta causa, lo que ves sería <b>menos común</b>, así que la sospecha se reduce: ${pc1(b.pA)} × ${b.f.toFixed(2)} = <b>${pc1(b.post)}</b>.`;
+  const top = ranking()[0];
+  const useTxt = c === top
+    ? `Este ${pc1(b.post)} es lo que ahora puedes confiar en «${nm}», ya con las pistas a la vista. Como es el más alto de las cuatro causas, es la que conviene revisar primero (sección 03 · Veredicto): ${N[c].act}`
+    : `Este ${pc1(b.post)} es lo que ahora puedes confiar en «${nm}», ya con las pistas a la vista. Como queda por debajo de «${N[top].short}» (${pc1(curPost[top])}), conviene revisarla después y no gastar tiempo en ella primero.`;
   return `<div class="bx">
     <div class="ba"><span>Antes</span><div class="tr"><i style="width:${(b.pA * 100).toFixed(1)}%;background:${col};opacity:.45"></i></div><b>${pc1(b.pA)}</b>
       <span>Después</span><div class="tr"><i style="width:${(b.post * 100).toFixed(1)}%;background:${col}"></i></div><b>${pc1(b.post)}</b></div>
     ${FORMULA}
-    <p class="legend">A = «${nm}» · B = lo que marcaste</p>
+    <p class="legend">Se lee: «la probabilidad de A sabiendo B». Aquí A = «${nm}» y B = lo que marcaste.</p>
     <table class="ing"><tbody>
       <tr><td class="sym">P(A)</td><td>Qué tan común es «${nm}» antes de ver pistas<small>probabilidad inicial, sección 7 del reporte</small></td><td class="v">${pc1(b.pA)}</td></tr>
       <tr><td class="sym">P(B | A)</td><td>Si «${nm}» está presente, qué tan seguido pasa justo lo que marcaste</td><td class="v">${pc1(b.pBA)}</td></tr>
@@ -1035,6 +1046,7 @@ function calcFor(c) {
     </tbody></table>
     <div class="subst">P(A | B) = ${b.pBA.toFixed(3)} × ${b.pA.toFixed(3)} ÷ ${b.pB.toFixed(4)} = <b>${pc1(b.post)}</b></div>
     <p class="plain"><b>En palabras:</b> ${plain}</p>
+    <p class="why4"><b>¿Para qué sirve saber esto?</b> ${useTxt}</p>
     <p class="see">En la sección 05 está esta misma cuenta hecha con 10,000 momentos imaginarios.</p>
   </div>`;
 }
@@ -1073,7 +1085,8 @@ function renderCount() {
         <li><p>Los otros ${nf(nN)} momentos no tienen la causa. ¿En cuántos pasa lo que marcaste de todos modos?</p><div class="ops">${nf(nN)} × ${pc1(b.pBnA)} = ${nf(B)}</div></li>
         <li><p>En total, lo que marcaste pasa en:</p><div class="ops">${nf(A)} + ${nf(B)} = ${nf(tot)} momentos (P(B) = ${nf(tot)} ÷ 10,000 = ${pc1(b.pB)})</div></li>
         <li><p>De esos ${nf(tot)} momentos, ¿qué parte tiene «${nm}»?</p><div class="ops">${nf(A)} ÷ ${nf(tot)} = <b>${pc1(b.post)}</b></div></li>
-      </ol></div></details>
+      </ol>
+      <p class="why4"><b>¿Para qué sirve saber esto?</b> Contar momentos permite comprobar el resultado sin usar fórmulas: solo hay multiplicaciones, una suma y una división que cualquiera puede seguir. Si este conteo y la cuenta de la sección 04 dan el mismo ${pc1(b.post)}, el cálculo está bien hecho.</p></div></details>
       <details class="more"><summary>¿Por qué esto es el Teorema de Bayes?</summary><div class="bx">
         ${FORMULA}
         <p>La fórmula dice: multiplica P(B | A) por P(A) y divide entre P(B). Si multiplicas lo de arriba y lo de abajo por 10,000, el resultado no cambia, pero los porcentajes se convierten en momentos que se pueden contar:</p>
@@ -1083,6 +1096,7 @@ function renderCount() {
           <tr><td>${nf(A)} ÷ ${nf(tot)} = ${pc1(b.post)}</td><td>La división final (paso 5) da el mismo resultado que la fórmula.</td></tr>
         </tbody></table>
         <p>Por eso se le llama el Teorema de Bayes <b>«contado»</b>: es la misma operación, pero con momentos que uno puede imaginar en lugar de porcentajes. La sección 04 muestra esta cuenta con la fórmula.</p>
+        <p class="why4"><b>¿Para qué sirve saber esto?</b> Para no caer en el error más común con las probabilidades: creer que P(B | A) y P(A | B) son lo mismo. Aquí P(B | A) = ${pc1(b.pBA)} responde «si hay ${nm.toLowerCase()}, ¿qué tan seguido veo esto?», y P(A | B) = ${pc1(b.post)} responde «si veo esto, ¿qué tan probable es que haya ${nm.toLowerCase()}?». Son preguntas distintas y dan números distintos. Bayes es justo la herramienta que convierte una en la otra, y es la segunda la que sirve para decidir qué revisar.</p>
       </div></details>`;
   }
   const cells = $("#waffle").children;
