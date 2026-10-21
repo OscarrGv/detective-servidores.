@@ -344,6 +344,21 @@ table.ing small { color: var(--muted); display: block; }
 @media (max-width: 520px) { .count-body { grid-template-columns: minmax(0, 1fr); } }
 .count-text .sum { font-size: 15px; }
 .count-text .small { color: var(--muted); font-size: 13px; }
+
+/* ---------- círculos de Bayes ---------- */
+.venn { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 0 0 16px; }
+.venn figure { margin: 0; border: 1.5px solid var(--hair); background: var(--paper); padding: 8px 10px 10px; min-width: 0; }
+.venn svg { width: 100%; height: auto; display: block; }
+.venn .vt { font-family: var(--f-body); font-weight: 700; font-size: 15px; fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; text-anchor: middle; dominant-baseline: central; }
+.venn .vt.big { font-size: 22px; }
+.venn .vt.sm { font-size: 12.5px; font-weight: 600; fill: var(--muted); }
+.venn figcaption { font-size: 13.5px; line-height: 1.45; margin-top: 6px; }
+.venn figcaption h4 { margin: 0 0 3px; font-size: 14.5px; }
+.venn figcaption p { margin: 0 0 4px; }
+.venn .vk { display: inline-flex; align-items: center; gap: 5px; margin: 2px 10px 0 0; font-size: 12.5px; white-space: nowrap; }
+.venn .vk i { width: 12px; height: 12px; border: 1px solid var(--rule); display: inline-block; }
+.venn .evl { grid-column: 1 / -1; margin: 0; padding: 8px 12px; background: var(--accent-soft); border: 1.5px solid var(--rule); font-size: 14px; }
+.venn .rule { grid-column: 1 / -1; margin: 0; padding: 8px 12px; border-left: 4px solid var(--mark); background: var(--paper-2); font-size: 14px; }
 ol.steps5 { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 ol.steps5 li p { margin: 0 0 3px; }
 table.map { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -443,9 +458,10 @@ table.map td:first-child { font-family: var(--f-mono); }
           <li><p><b>Para comprobar la cuenta.</b> Si contar momentos y usar la fórmula de la sección 04 dan el mismo porcentaje, el cálculo está bien hecho. Es la misma idea que la comprobación a mano de la sección 9 del reporte.</p></li>
           <li><p><b>Para explicarlo en la presentación.</b> Si te preguntan qué hace la red, basta con decir: «de los casos en que pasa lo que veo, cuento en cuántos está cada causa».</p></li>
         </ol>
-        <p class="why4"><b>Cómo usarla:</b> marca pistas arriba o elige una consulta C1–C7, y escoge aquí la causa que quieras contar. Los cuadritos y el resumen se actualizan solos; abre «Ver cómo se cuenta» para seguir la cuenta paso a paso.</p>
+        <p class="why4"><b>Cómo usarla:</b> marca pistas arriba o elige una consulta C1–C7, y escoge aquí la causa que quieras contar. Los tres dibujos de círculos, los cuadritos y el resumen se actualizan solos. Los círculos muestran lo mismo que la cuenta, pero a la vista: un grupo es la causa, otro es lo que marcaste, y el traslape es lo que tienen en común. Abre «Ver cómo se cuenta» para seguir la cuenta paso a paso.</p>
       </div></details>
       <div class="count-sel" id="countSel"></div>
+      <div class="venn" id="venn"></div>
       <div class="count-body">
         <div class="waffle" id="waffle" aria-hidden="true"></div>
         <div class="count-text" id="countText"></div>
@@ -1070,24 +1086,106 @@ function whyItem(c, title, text, contrib, tag, calc) {
   return d;
 }
 
+
+/* ---------- círculos de Bayes (a escala entre sí) ---------- */
+function lensArea(r1, r2, d) {
+  if (d >= r1 + r2) return 0;
+  if (d <= Math.abs(r1 - r2)) return Math.PI * Math.min(r1, r2) ** 2;
+  const a = r1 * r1 * Math.acos((d * d + r1 * r1 - r2 * r2) / (2 * d * r1));
+  const b = r2 * r2 * Math.acos((d * d + r2 * r2 - r1 * r1) / (2 * d * r2));
+  const c = 0.5 * Math.sqrt((-d + r1 + r2) * (d + r1 - r2) * (d - r1 + r2) * (d + r1 + r2));
+  return a + b - c;
+}
+function vennGeom(aA, aB, aAB) {
+  const r1 = Math.sqrt(aA / Math.PI), r2 = Math.sqrt(aB / Math.PI);
+  let lo = Math.abs(r1 - r2), hi = r1 + r2, d;
+  if (aAB <= 1e-6) d = hi;
+  else if (aAB >= Math.min(aA, aB) - 1e-6) d = lo;
+  else { for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (lensArea(r1, r2, m) > aAB) lo = m; else hi = m; } d = (lo + hi) / 2; }
+  const left = Math.min(-r1, d - r2), right = Math.max(r1, d + r2);
+  const s = Math.min(100 / Math.max(r1, r2), 270 / (right - left));
+  const off = 150 - s * (left + right) / 2;
+  const xA = off, xB = off + d * s, rA = r1 * s, rB = r2 * s;
+  return { xA, xB, rA, rB, cy: 118 };
+}
+function vennDots() {
+  let seed = 7, out = "";
+  for (let i = 0; i < 90; i++) {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff; const x = 56 + (seed % 1000) / 1000 * 188;
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff; const y = 22 + (seed % 1000) / 1000 * 192;
+    out += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.2" fill="#C7D0D8"/>`;
+  }
+  return out;
+}
+function vennPanel1() {
+  return `<figure><svg viewBox="0 0 300 236" role="img" aria-label="Cuadro con 10,000 momentos del servidor">
+      <rect x="50" y="16" width="200" height="206" fill="none" stroke="var(--rule)" stroke-width="2"/>${vennDots()}
+      <text class="vt big" x="150" y="108">10,000</text><text class="vt big" x="150" y="134">momentos</text></svg>
+    <figcaption><h4>1. Todo lo que puede pasar</h4><p>Cada punto es un momento del servidor. Aquí caben todos.</p></figcaption></figure>`;
+}
+function vennLabels(g, nums) {
+  const lA = g.xA - g.rA, rA = g.xA + g.rA, lB = g.xB - g.rB, rB = g.xB + g.rB;
+  let t = "";
+  const ox0 = Math.max(lA, lB), ox1 = Math.min(rA, rB);
+  if (ox1 - ox0 >= 30) t += `<text class="vt" x="${((ox0 + ox1) / 2).toFixed(1)}" y="${g.cy}">${nums.both}</text>`;
+  if (lB - lA >= 40) t += `<text class="vt" x="${((lA + lB) / 2).toFixed(1)}" y="${g.cy}">${nums.onlyA}</text>`;
+  if (rB - rA >= 40) t += `<text class="vt" x="${((rA + rB) / 2).toFixed(1)}" y="${g.cy}">${nums.onlyB}</text>`;
+  return t;
+}
+function vennHTML(o) {
+  const g = vennGeom(o.nA, o.totB, o.inter), colA = `var(${N[o.c].color})`, colB = "var(--pista)";
+  const nums = { both: o.f(o.inter), onlyA: o.f(o.nA - o.inter), onlyB: o.f(o.totB - o.inter) };
+  const p2 = `<figure><svg viewBox="0 0 300 236" role="img" aria-label="Dos círculos que se traslapan: ${o.nm} y lo que marcaste">
+      <circle cx="${g.xA.toFixed(1)}" cy="${g.cy}" r="${g.rA.toFixed(1)}" fill="${colA}" fill-opacity=".55" stroke="${colA}" stroke-width="2.5"/>
+      <circle cx="${g.xB.toFixed(1)}" cy="${g.cy}" r="${g.rB.toFixed(1)}" fill="${colB}" fill-opacity=".55" stroke="var(--pista-ink)" stroke-width="2.5"/>
+      ${vennLabels(g, nums)}
+      <text class="vt sm" x="150" y="226">los círculos van a escala entre sí</text></svg>
+    <figcaption><h4>2. Dos grupos que se traslapan</h4>
+      <p><span class="vk"><i style="background:${colA}"></i>«${o.nm}»: ${o.f(o.nA)}</span><span class="vk"><i style="background:${colB}"></i>lo que marcaste: ${o.f(o.totB)}</span><span class="vk"><i style="background:linear-gradient(90deg,${colA},${colB})"></i>los dos a la vez: ${o.f(o.inter)}</span></p>
+      <p>Si te quedas <b>solo dentro de «${o.nm}»</b>: ${o.f(o.inter)} de ${o.f(o.nA)} tienen lo que marcaste = <b>${o.pBA}</b>. Eso es P(B | A).</p></figcaption></figure>`;
+  const id = "vclip" + Math.round(o.inter);
+  const p3 = `<figure><svg viewBox="0 0 300 236" role="img" aria-label="Solo importa el círculo de lo que marcaste">
+      <defs><clipPath id="${id}"><circle cx="${g.xB.toFixed(1)}" cy="${g.cy}" r="${g.rB.toFixed(1)}"/></clipPath></defs>
+      <circle cx="${g.xA.toFixed(1)}" cy="${g.cy}" r="${g.rA.toFixed(1)}" fill="none" stroke="${colA}" stroke-width="2" stroke-dasharray="5 5" opacity=".6"/>
+      <circle cx="${g.xB.toFixed(1)}" cy="${g.cy}" r="${g.rB.toFixed(1)}" fill="${colB}" fill-opacity=".3" stroke="var(--pista-ink)" stroke-width="3.5"/>
+      <circle cx="${g.xA.toFixed(1)}" cy="${g.cy}" r="${g.rA.toFixed(1)}" fill="${colA}" fill-opacity=".85" clip-path="url(#${id})"/>
+      ${vennLabels(g, { both: nums.both, onlyA: "", onlyB: nums.onlyB })}
+      <text class="vt sm" x="150" y="226">lo de fuera del círculo verde ya no cuenta</text></svg>
+    <figcaption><h4>3. Miro solo dentro de lo que marqué</h4>
+      <p>Ya viste lo que marcaste, así que solo cuentan sus ${o.f(o.totB)} momentos. De ellos, ${o.f(o.inter)} tienen «${o.nm}»:</p>
+      <p><b>${o.f(o.inter)} ÷ ${o.f(o.totB)} = ${o.post}</b>. Eso es P(A | B), lo que muestra la red.</p></figcaption></figure>`;
+  return `<p class="evl"><b>Lo que marcaste (B):</b> ${o.evt}</p>${vennPanel1()}${p2}${p3}
+    <p class="rule"><b>Regla para no perderte:</b> el resultado es siempre <b>el traslape dividido entre el grupo donde te quedas</b>. Si te quedas en «${o.nm}», sale ${o.pBA} (P(B | A)). Si te quedas en lo que marcaste, sale ${o.post} (P(A | B)). El traslape es el mismo; cambia contra qué lo comparas.</p>`;
+}
+function vennOne(c, nm, nA, f, pA) {
+  const side = 200, k = Math.sqrt(10000 / (side * side)), r = Math.sqrt(nA / Math.PI) / k;
+  return vennPanel1() + `<figure><svg viewBox="0 0 300 236" role="img" aria-label="Cuánto del cuadro ocupa ${nm}">
+      <rect x="50" y="16" width="200" height="206" fill="none" stroke="var(--rule)" stroke-width="2"/>
+      <circle cx="150" cy="119" r="${Math.min(r, 98).toFixed(1)}" fill="var(${N[c].color})" fill-opacity=".6" stroke="var(${N[c].color})" stroke-width="2.5"/>
+      <text class="vt big" x="150" y="119">${f(nA)}</text></svg>
+    <figcaption><h4>2. «${nm}» en el cuadro</h4><p>Sin ninguna pista, «${nm}» está en ${f(nA)} de los 10,000 momentos: <b>${(pA * 100).toFixed(1)} %</b>. Marca una pista y aquí verás cómo se traslapan dos grupos.</p></figcaption></figure>`;
+}
+
 function renderCount() {
   const c = countCause || ranking()[0], nm = N[c].short;
   CAUSAS.forEach((x) => document.getElementById("cs-" + x).setAttribute("aria-pressed", x === c ? "true" : "false"));
   const T = 10000, k = Object.keys(ev).length;
   const nf = (x) => x >= 100 ? Math.round(x).toLocaleString("es-MX") : x >= 10 ? x.toFixed(0) : x.toFixed(1);
   const rnd = (x) => x >= 10 ? Math.round(x) : Math.round(x * 10) / 10;
-  let fill, html, more = "";
+  let fill, html, more = "", vh = "";
   if (ev[c] !== undefined) {
     fill = ev[c] ? 100 : 0;
     html = `<p>Fijaste «${nm}» en «${ev[c] ? "Sí" : "No"}» como supuesto, así que no hay nada que contar. Elige otra causa arriba.</p>`;
   } else if (!k) {
     const pA = infer({}).post[c]; fill = Math.round(pA * 100);
+    vh = vennOne(c, nm, T * pA, nf, pA);
     html = `<p class="sum">De 10,000 momentos del servidor, «${nm}» está presente en unos <b>${nf(T * pA)}</b>: <span class="mono">${fmt(pA)}</span>.</p>
       <p class="small">Cada cuadrito es 1 % de los momentos. Marca una pista y aquí verás cómo se cuentan solo los momentos en que pasa lo que ves.</p>`;
   } else {
     const b = bayesOf(c);
     const nA = T * b.pA, nN = T - nA, A = rnd(nA * b.pBA), B = rnd(nN * b.pBnA), tot = A + B;
     fill = Math.round(b.post * 100);
+    vh = vennHTML({ c, nm, nA: nA, inter: A, totB: tot, f: nf, pBA: pc1(b.pBA), post: pc1(b.post), evt: Object.keys(ev).map((k) => `${N[k].short}: ${ev[k] ? "Sí" : "No"}`).join(" · ") });
     html = `<p class="sum">De 10,000 momentos del servidor, lo que marcaste pasa en <b>${nf(tot)}</b>. En <b>${nf(A)}</b> de ellos hay «${nm}».<br><span class="mono">${nf(A)} ÷ ${nf(tot)} = <b>${pc1(b.post)}</b></span></p>
       <p class="small">Los 100 cuadritos representan esos ${nf(tot)} momentos; los coloreados son los que tienen «${nm}».</p>`;
     more = `<details class="more"><summary>Ver cómo se cuenta, paso a paso</summary><div class="bx"><ol class="steps5">
@@ -1119,6 +1217,7 @@ function renderCount() {
   }
   $("#countText").innerHTML = html;
   $("#countMore").innerHTML = more;
+  $("#venn").innerHTML = vh;
 }
 
 function select(v) { sel = v; renderNodes(); renderDetail(); }
