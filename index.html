@@ -358,6 +358,13 @@ table.ing small { color: var(--muted); display: block; }
 .venn .vk { display: inline-flex; align-items: center; gap: 5px; margin: 2px 10px 0 0; font-size: 12.5px; white-space: nowrap; }
 .venn .vk i { width: 12px; height: 12px; border: 1px solid var(--rule); display: inline-block; }
 .venn .evl { grid-column: 1 / -1; margin: 0; padding: 8px 12px; background: var(--accent-soft); border: 1.5px solid var(--rule); font-size: 14px; }
+.vsrc { grid-column: 1 / -1; font-size: 13.5px; background: var(--paper-2); border: 1px solid var(--hair); padding: 9px 12px; margin: 0; }
+.vsrc p { margin: 0 0 4px; }
+.vsrc ol { margin: 4px 0 0; padding-left: 22px; display: grid; gap: 4px; }
+.vsrc li b { font-family: var(--f-mono); }
+.vsrc li small { display: block; color: var(--muted); font-size: 12.5px; }
+.vsrc .mono { font-family: var(--f-mono); white-space: nowrap; }
+.venn-why { margin: 10px 0 4px; }
 .venn .rule { grid-column: 1 / -1; margin: 0; padding: 8px 12px; border-left: 4px solid var(--mark); background: var(--paper-2); font-size: 14px; }
 ol.steps5 { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 ol.steps5 li p { margin: 0 0 3px; }
@@ -998,7 +1005,7 @@ function renderWhy() {
   const base = infer({}).post, top = ranking()[0];
   if (!keys.length) {
     lead.innerHTML = `<p class="lead-why">Aún no marcas ninguna pista. Lo que ves son las <b>probabilidades iniciales</b> (sección 7 del reporte): qué tan común es cada causa en general. «${N[top].short}» va al frente solo porque es la más frecuente. Marca una pista en «Lo que ves» o elige una consulta C1–C7.</p>`;
-    CAUSAS.forEach((c) => list.appendChild(whyItem(c, `${N[c].short}: ${fmt(base[c])}`, N[c].prior, [], null, "")));
+    CAUSAS.forEach((c) => list.appendChild(whyItem(c, `${N[c].short}: ${fmt(base[c])}`, N[c].prior, [], null, "", `<div class="venn venn-why">${beforeFig(c, base[c], 10000 * base[c])}</div>`)));
     return;
   }
   const tc = topCombo(ev), facs = ORDEN.map((v) => factor(v, tc.a)), nKeep = 512 / Math.pow(2, keys.length);
@@ -1047,7 +1054,7 @@ function renderWhy() {
         } else text = `Se movió principalmente por ${evName(main.k)}.`;
       } else text = "Cambió por la combinación de varias pistas a la vez.";
     }
-    list.appendChild(whyItem(c, title, text, contrib.filter((x) => Math.abs(x.d) >= .0005).slice(0, 4), tag, calcFor(c)));
+    list.appendChild(whyItem(c, title, text, contrib.filter((x) => Math.abs(x.d) >= .0005).slice(0, 4), tag, calcFor(c), whyVenn(c)));
   });
 }
 // La cuenta de una causa, con la fórmula original del Teorema de Bayes
@@ -1077,10 +1084,11 @@ function calcFor(c) {
     <p class="see">En la sección 05 está esta misma cuenta hecha con 10,000 momentos imaginarios.</p>
   </div>`;
 }
-function whyItem(c, title, text, contrib, tag, calc) {
+function whyItem(c, title, text, contrib, tag, calc, pic) {
   const d = document.createElement("div"); d.className = "why-item";
   d.innerHTML = `<div class="stripe" style="background:var(${N[c].color})"></div><div><h3>${title}</h3><p>${text}</p>
     ${tag ? `<span class="tag">${tag}</span>` : ""}
+    ${pic || ""}
     ${contrib.length ? `<div class="contrib">${contrib.map((x) => `<span class="pill ${x.d > 0 ? "up" : "down"}" title="Cuánto cambia si quitas esa pista">${N[x.k].short} = ${ev[x.k] ? "Sí" : "No"}: <span class="mono">${pts(x.d)}</span> pts</span>`).join("")}</div>` : ""}
     ${calc ? `<details class="calc"><summary>Ver la cuenta</summary>${calc}</details>` : ""}</div>`;
   return d;
@@ -1132,6 +1140,47 @@ function vennLabels(g, nums) {
   if (rB - rA >= 40) t += `<text class="vt" x="${((rA + rB) / 2).toFixed(1)}" y="${g.cy}">${nums.onlyB}</text>`;
   return t;
 }
+
+const nfm = (x) => x >= 100 ? Math.round(x).toLocaleString("es-MX") : x >= 10 ? x.toFixed(0) : x.toFixed(1);
+const rndm = (x) => x >= 10 ? Math.round(x) : Math.round(x * 10) / 10;
+function countsOf(c) {
+  const b = bayesOf(c), T = 10000, nA = T * b.pA, nN = T - nA, inter = rndm(nA * b.pBA), soloB = rndm(nN * b.pBnA);
+  return { b, nA, nN, inter, soloB, tot: inter + soloB };
+}
+function vennSrc(nm, k) {
+  const b = k.b, f = nfm;
+  return `<div class="vsrc"><p><b>¿De dónde salen estos números?</b> Los porcentajes se convierten en momentos: se multiplica el porcentaje por el grupo del que se habla (por ejemplo, 25 % de 10,000 = 2,500).</p><ol>
+    <li><b>${f(k.nA)}</b> momentos con «${nm}» = <span class="mono">10,000 × ${pc1(b.pA)}</span><small>P(A): qué tan común es la causa al inicio (sección 7 del reporte).</small></li>
+    <li><b>${f(k.inter)}</b> de ellos tienen además lo que marcaste = <span class="mono">${f(k.nA)} × ${pc1(b.pBA)}</span><small>P(B | A): cuando está la causa, qué tan seguido pasa lo que marcaste.</small></li>
+    <li><b>${f(k.soloB)}</b> momentos tienen lo que marcaste sin la causa = <span class="mono">${f(k.nN)} × ${pc1(b.pBnA)}</span><small>P(B | no A): sin la causa, qué tan seguido pasa de todos modos (por otras causas).</small></li>
+    <li><b>${f(k.tot)}</b> momentos en total con lo que marcaste = <span class="mono">${f(k.inter)} + ${f(k.soloB)}</span><small>P(B) = ${pc1(b.pB)} de los 10,000.</small></li>
+    <li><b>${pc1(b.post)}</b> = <span class="mono">${f(k.inter)} ÷ ${f(k.tot)}</span><small>P(A | B): la parte de lo marcado que tiene la causa. Es el resultado.</small></li>
+  </ol><p style="margin-top:6px;color:var(--muted);font-size:12.5px">P(B | A) y P(B | no A) los calcula la red con las tablas de la sección 8 del reporte; «¿De dónde salen los tres datos?» en la sección 04 lo explica.</p></div>`;
+}
+function beforeFig(c, pA, nA) {
+  const nm = N[c].short, col = `var(${N[c].color})`, r0 = Math.min(88, Math.sqrt(pA * 180 * 180 / Math.PI));
+  return `<figure><svg viewBox="0 0 300 236" role="img" aria-label="Antes: ${nm} en el cuadro de 10,000 momentos">
+      <rect x="60" y="20" width="180" height="180" fill="none" stroke="var(--rule)" stroke-width="2"/>
+      <circle cx="150" cy="110" r="${r0.toFixed(1)}" fill="${col}" fill-opacity=".6" stroke="${col}" stroke-width="2.5"/>
+      <text class="vt" x="150" y="110">${nfm(nA)}</text>
+      <text class="vt sm" x="150" y="222">el cuadro son los 10,000 momentos</text></svg>
+    <figcaption><h4>Antes: ${pc1(pA)}</h4><p>Sin pistas, «${nm}» ocupa ${nfm(nA)} de los 10,000 momentos: ${nfm(nA)} ÷ 10,000 = ${pc1(pA)}.</p></figcaption></figure>`;
+}
+function afterFig(c, k) {
+  const nm = N[c].short, col = `var(${N[c].color})`, g = vennGeom(k.nA, k.tot, k.inter), id = "wclip-" + c, f = nfm;
+  return `<figure><svg viewBox="0 0 300 236" role="img" aria-label="Después: solo dentro de lo que marcaste">
+      <defs><clipPath id="${id}"><circle cx="${g.xB.toFixed(1)}" cy="${g.cy}" r="${g.rB.toFixed(1)}"/></clipPath></defs>
+      <circle cx="${g.xA.toFixed(1)}" cy="${g.cy}" r="${g.rA.toFixed(1)}" fill="none" stroke="${col}" stroke-width="2" stroke-dasharray="5 5" opacity=".6"/>
+      <circle cx="${g.xB.toFixed(1)}" cy="${g.cy}" r="${g.rB.toFixed(1)}" fill="var(--pista)" fill-opacity=".3" stroke="var(--pista-ink)" stroke-width="3.5"/>
+      <circle cx="${g.xA.toFixed(1)}" cy="${g.cy}" r="${g.rA.toFixed(1)}" fill="${col}" fill-opacity=".85" clip-path="url(#${id})"/>
+      ${vennLabels(g, { both: f(k.inter), onlyA: "", onlyB: f(k.soloB) })}
+      <text class="vt sm" x="150" y="226">lo de fuera del círculo verde ya no cuenta</text></svg>
+    <figcaption><h4>Después: ${pc1(k.b.post)}</h4><p>Círculo verde: lo que marcaste. Línea punteada: «${nm}».</p><p>Ahora solo cuentan los ${f(k.tot)} momentos con lo que marcaste. De ellos, ${f(k.inter)} tienen «${nm}» (parte de color): ${f(k.inter)} ÷ ${f(k.tot)} = ${pc1(k.b.post)}.</p></figcaption></figure>`;
+}
+function whyVenn(c) {
+  const k = countsOf(c);
+  return `<div class="venn venn-why">${beforeFig(c, k.b.pA, k.nA)}${afterFig(c, k)}${vennSrc(N[c].short, k)}</div>`;
+}
 function vennHTML(o) {
   const g = vennGeom(o.nA, o.totB, o.inter), colA = `var(${N[o.c].color})`, colB = "var(--pista)";
   const nums = { both: o.f(o.inter), onlyA: o.f(o.nA - o.inter), onlyB: o.f(o.totB - o.inter) };
@@ -1154,7 +1203,7 @@ function vennHTML(o) {
     <figcaption><h4>3. Miro solo dentro de lo que marqué</h4>
       <p>Ya viste lo que marcaste, así que solo cuentan sus ${o.f(o.totB)} momentos. De ellos, ${o.f(o.inter)} tienen «${o.nm}»:</p>
       <p><b>${o.f(o.inter)} ÷ ${o.f(o.totB)} = ${o.post}</b>. Eso es P(A | B), lo que muestra la red.</p></figcaption></figure>`;
-  return `<p class="evl"><b>Lo que marcaste (B):</b> ${o.evt}</p>${vennPanel1()}${p2}${p3}
+  return `<p class="evl"><b>Lo que marcaste (B):</b> ${o.evt}</p>${vennPanel1()}${p2}${p3}${vennSrc(o.nm, countsOf(o.c))}
     <p class="rule"><b>Regla para no perderte:</b> el resultado es siempre <b>el traslape dividido entre el grupo donde te quedas</b>. Si te quedas en «${o.nm}», sale ${o.pBA} (P(B | A)). Si te quedas en lo que marcaste, sale ${o.post} (P(A | B)). El traslape es el mismo; cambia contra qué lo comparas.</p>`;
 }
 function vennOne(c, nm, nA, f, pA) {
