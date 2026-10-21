@@ -1202,6 +1202,14 @@ function beforeFig(c, pA, nA) {
       <text class="vt sm" x="150" y="222">el cuadro son los 10,000 momentos</text></svg>
     <figcaption><h4>Antes: ${pc1(pA)}</h4><p>Sin pistas, «${nm}» ocupa ${nfm(nA)} de los 10,000 momentos: ${nfm(nA)} ÷ 10,000 = ${pc1(pA)}.</p></figcaption></figure>`;
 }
+
+function evText() { return Object.keys(ev).map((k) => `«${N[k].short}: ${ev[k] ? "Sí" : "No"}»`).join(" y "); }
+function trendText(nm, b) {
+  if (Math.abs(b.pBA - b.pB) < .0005) return `No cambia porque lo que marcaste pasa igual de seguido con «${nm}» (${pc1(b.pBA)}) que en general (${pc1(b.pB)}).`;
+  return b.pBA > b.pB
+    ? `Sube (antes ${pc1(b.pA)}) porque con «${nm}» lo que marcaste pasa más seguido (${pc1(b.pBA)}) que en general (${pc1(b.pB)}).`
+    : `Baja (antes ${pc1(b.pA)}) porque con «${nm}» lo que marcaste pasa menos seguido (${pc1(b.pBA)}) que en general (${pc1(b.pB)}).`;
+}
 function afterFig(c, k) {
   const nm = N[c].short, col = colorOf(c), g = vennGeom(k.nA, k.tot, k.inter), id = "wclip-" + c, f = nfm;
   return `<figure><svg viewBox="0 0 300 236" role="img" aria-label="Después: solo dentro de lo que marcaste">
@@ -1211,7 +1219,11 @@ function afterFig(c, k) {
       <circle cx="${g.xA.toFixed(1)}" cy="${g.cy}" r="${g.rA.toFixed(1)}" fill="${col}" fill-opacity=".85" clip-path="url(#${id})"/>
       ${vennLabels(g, { both: f(k.inter), onlyA: "", onlyB: f(k.soloB) })}
       <text class="vt sm" x="150" y="226">lo de fuera del círculo verde ya no cuenta</text></svg>
-    <figcaption><h4>Después: ${pc1(k.b.post)}</h4><p>Círculo verde: lo que marcaste. Línea punteada: «${nm}».</p><p>Ahora solo cuentan los ${f(k.tot)} momentos con lo que marcaste. De ellos, ${f(k.inter)} tienen «${nm}» (parte de color): ${f(k.inter)} ÷ ${f(k.tot)} = ${pc1(k.b.post)}.</p></figcaption></figure>`;
+    <figcaption><h4>Después: ${pc1(k.b.post)}</h4>
+      <p><b>Lo que marcaste:</b> ${evText()}.</p>
+      <p><b>Círculo verde = ${f(k.tot)} momentos.</b> Son los momentos en que pasa lo que marcaste: 10,000 × ${pc1(k.b.pB)}, porque eso pasa el ${pc1(k.b.pB)} del tiempo en general. Lo de fuera ya no cuenta, porque contradice lo que viste.</p>
+      <p><b>Parte de color = ${f(k.inter)} momentos.</b> Son los que además tienen «${nm}» (línea punteada): de los ${f(k.nA)} momentos con «${nm}», lo que marcaste pasa en el ${pc1(k.b.pBA)} → ${f(k.nA)} × ${pc1(k.b.pBA)} = ${f(k.inter)}.</p>
+      <p><b>Resultado:</b> ${f(k.inter)} ÷ ${f(k.tot)} = <b>${pc1(k.b.post)}</b>. ${trendText(nm, k.b)}</p></figcaption></figure>`;
 }
 function whyVenn(c) {
   const k = countsOf(c);
