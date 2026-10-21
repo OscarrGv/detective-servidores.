@@ -365,6 +365,7 @@ table.ing small { color: var(--muted); display: block; }
 .vsrc li small { display: block; color: var(--muted); font-size: 12.5px; }
 .vsrc .mono { font-family: var(--f-mono); white-space: nowrap; }
 .venn-why { margin: 10px 0 4px; }
+.vfx { font-size: 14.5px; justify-content: flex-start; background: var(--paper); }
 .clue-h { margin: 24px 0 8px; font-size: 19px; }
 #whyClues:empty { display: none; }
 .venn .rule { grid-column: 1 / -1; margin: 0; padding: 8px 12px; border-left: 4px solid var(--mark); background: var(--paper-2); font-size: 14px; }
@@ -1182,6 +1183,11 @@ function countsOf(c) {
   const b = bayesOf(c), T = 10000, nA = T * b.pA, nN = T - nA, inter = rndm(nA * b.pBA), tot = rndm(T * b.pB), soloB = Math.round((tot - inter) * 10) / 10;
   return { b, nA, nN, inter, soloB, tot };
 }
+
+function approxEq(b) {
+  const r1 = (x) => Math.round(x * 1000) / 1000, v = r1(b.pBA) * r1(b.pA) / r1(b.pB);
+  return pc1(v) === pc1(b.post) ? "=" : "≈";
+}
 function vennSrc(nm, k, isCause = true) {
   const b = k.b, f = nfm;
   return `<div class="vsrc"><p><b>¿De dónde salen estos números?</b> Los porcentajes se convierten en momentos: se multiplica el porcentaje por el grupo del que se habla (por ejemplo, 25 % de 10,000 = 2,500).</p><ol>
@@ -1190,7 +1196,11 @@ function vennSrc(nm, k, isCause = true) {
     <li><b>${f(k.soloB)}</b> momentos tienen lo que marcaste sin «${nm}» = <span class="mono">${f(k.nN)} × ${pc1(b.pBnA)}</span><small>P(B | no A): sin «${nm}», qué tan seguido pasa de todos modos (por otras razones).</small></li>
     <li><b>${f(k.tot)}</b> momentos en total con lo que marcaste = <span class="mono">${f(k.inter)} + ${f(k.soloB)}</span><small>P(B) = ${pc1(b.pB)} de los 10,000.</small></li>
     <li><b>${pc1(b.post)}</b> = <span class="mono">${f(k.inter)} ÷ ${f(k.tot)}</span><small>P(A | B): la parte de lo marcado que tiene «${nm}». Es el resultado.</small></li>
-  </ol><p style="margin-top:6px;color:var(--muted);font-size:12.5px">P(B | A) y P(B | no A) los calcula la red con las tablas de la sección 8 del reporte; «¿De dónde salen los tres datos?» en la sección 04 lo explica.</p></div>`;
+  </ol>
+  <p style="margin:10px 0 4px"><b>La fórmula de Bayes con estos valores</b> (A = «${nm}», B = lo que marcaste: ${evText()}):</p>
+  <div class="formula vfx"><span>P(A | B) =</span><span class="fr"><span>P(B | A) × P(A)</span><span>P(B)</span></span><span>=</span><span class="fr"><span>${pc1(b.pBA)} × ${pc1(b.pA)}</span><span>${pc1(b.pB)}</span></span><span>${approxEq(b)} <b>${pc1(b.post)}</b></span></div>
+  <p style="margin:4px 0 0;font-size:12.5px;color:var(--muted)">Es la misma cuenta que el paso 5: arriba, ${pc1(b.pBA)} × ${pc1(b.pA)} son los ${nfm(k.inter)} momentos con las dos cosas (pasos 1 y 2); abajo, ${pc1(b.pB)} son los ${nfm(k.tot)} momentos con lo que marcaste (paso 4). Multiplicar arriba y abajo por 10,000 no cambia el resultado.${approxEq(b) === "≈" ? " El signo ≈ aparece porque los porcentajes de la fórmula se muestran redondeados a un decimal; la página calcula con todos los decimales." : ""}</p>
+  <p style="margin-top:6px;color:var(--muted);font-size:12.5px">P(B | A) y P(B | no A) los calcula la red con las tablas de la sección 8 del reporte; «¿De dónde salen los tres datos?» en la sección 04 lo explica.</p></div>`;
 }
 function colorOf(v) { return N[v].color ? `var(${N[v].color})` : N[v].kind === "inter" ? "var(--inter-ink)" : "var(--pencil)"; }
 function beforeFig(c, pA, nA) {
