@@ -365,6 +365,8 @@ table.ing small { color: var(--muted); display: block; }
 .vsrc li small { display: block; color: var(--muted); font-size: 12.5px; }
 .vsrc .mono { font-family: var(--f-mono); white-space: nowrap; }
 .venn-why { margin: 10px 0 4px; }
+.clue-h { margin: 24px 0 8px; font-size: 19px; }
+#whyClues:empty { display: none; }
 .venn .rule { grid-column: 1 / -1; margin: 0; padding: 8px 12px; border-left: 4px solid var(--mark); background: var(--paper-2); font-size: 14px; }
 ol.steps5 { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
 ol.steps5 li p { margin: 0 0 3px; }
@@ -449,9 +451,10 @@ table.map td:first-child { font-family: var(--f-mono); }
     </div>
 
     <section class="panel why" id="porque" aria-label="Por qué">
-      <div class="sheet-head"><span class="no">04</span><h2>¿Por qué cambió?</h2><small>una explicación por causa</small></div>
+      <div class="sheet-head"><span class="no">04</span><h2>¿Por qué cambió?</h2><small>una explicación por causa y por pista</small></div>
       <div id="whyLead"></div>
       <div class="why-list" id="whyList"></div>
+      <div class="why-list" id="whyClues"></div>
     </section>
 
     <section class="panel count" id="conteo" aria-label="Contar momentos">
@@ -924,7 +927,7 @@ function update(opts = {}) {
   } else history[history.length - 1] = { label: history[history.length - 1].label + " · lab", post: CAUSAS.map((c) => curPost[c]) };
   animateTo(curPost);
   if (opts.changed) pulse(opts.changed);
-  renderNodes(); renderObs(); renderVerdict(); renderWhy(); renderCount(); renderDetail(); renderHist(); renderScen();
+  renderNodes(); renderObs(); renderVerdict(); renderWhy(); renderClues(); renderCount(); renderDetail(); renderHist(); renderScen();
   const modified = JSON.stringify(P) !== JSON.stringify(DEFAULT);
   $("#labFlag").classList.toggle("on", modified);
 }
@@ -998,6 +1001,38 @@ function factor(v, a) {
   return { f, html: `<span class="fx"><b>${N[v].short}: ${val ? "Sí" : "No"}</b><small>${cond}</small><i>${f.toFixed(2)}</i></span>` };
 }
 const FORMULA = `<div class="formula"><span>P(A | B) =</span><span class="fr"><span>P(B | A) × P(A)</span><span>P(B)</span></span></div>`;
+
+
+function renderClues() {
+  const box = $("#whyClues"), keys = Object.keys(ev);
+  if (!keys.length) { box.innerHTML = ""; return; }
+  const base = infer({}).post, head = `<h3 class="clue-h">Y las pistas que no marcaste</h3>`;
+  const vars = ["Bloqueos", ...PISTAS].filter((v) => ev[v] === undefined);
+  if (!vars.length) { box.innerHTML = head + `<p class="lead-why">Marcaste todas las pistas, así que no queda ninguna por predecir.</p>`; return; }
+  let html = head + `<p class="lead-why">Las pistas que no marcaste también cambian. Aquí la red razona <b>al revés que arriba</b>: arriba va de la pista a la causa («veo errores, ¿qué los provocó?»); aquí va de la causa a la pista («si ahora sospecho más de esta causa, ¿qué otras señales debería ver?»). Sirve para decidir qué revisar después: si una pista que aún no has visto se volvió muy probable, revisarla confirma o descarta la sospecha.</p>`;
+  vars.forEach((v) => {
+    const n = N[v], d0 = curPost[v] - base[v], par = PADRES[v] || [];
+    const ch = par.map((p) => ({ p, a: base[p], b: curPost[p], d: curPost[p] - base[p] })).sort((x, y) => Math.abs(y.d) - Math.abs(x.d));
+    const main = ch[0], kidsSeen = (HIJOS[v] || []).filter((h) => ev[h] !== undefined);
+    let title, text;
+    if (Math.abs(d0) < .0005) {
+      title = `${n.short} no se movió (${fmt(curPost[v])})`;
+      text = `Lo que marcaste no cambia ninguna de las causas que la provocan (${par.map((p) => "«" + N[p].short + "»").join(", ")}), así que ella tampoco cambia.`;
+    } else {
+      title = `${n.short}: de ${fmt(base[v])} a ${fmt(curPost[v])}`;
+      if (Math.abs(main.d) >= .0005 && Math.sign(main.d) === Math.sign(d0))
+        text = `${d0 > 0 ? "Subió" : "Bajó"} porque lo que marcaste ${main.d > 0 ? "aumentó" : "redujo"} la sospecha de «${N[main.p].short}» (de ${fmt(main.a)} a ${fmt(main.b)}), y esa causa la provoca: ${RAZON[main.p + ">" + v]}`;
+      else text = `${d0 > 0 ? "Subió" : "Bajó"} por la combinación de las causas que la provocan: unas subieron y otras bajaron, y ganó el efecto de las que ${d0 > 0 ? "subieron" : "bajaron"}.`;
+      if (kidsSeen.length) text += ` Además, ${kidsSeen.map((h) => `«${N[h].short}: ${ev[h] ? "Sí" : "No"}»`).join(" y ")} es una consecuencia suya, así que ${kidsSeen.length > 1 ? "esas pistas también la mueven" : "esa pista también la mueve"} directamente, igual que en las causas de arriba.`;
+    }
+    const pills = ch.filter((x) => Math.abs(x.d) >= .0005).map((x) => `<span class="pill ${x.d > 0 ? "up" : "down"}">${N[x.p].short}: <span class="mono">${fmt(x.a)} → ${fmt(x.b)}</span></span>`).join("");
+    const k = countsOf(v);
+    html += `<div class="why-item"><div class="stripe" style="background:${colorOf(v)}"></div><div><h3>${title}</h3><p>${text}</p>
+      ${pills ? `<div class="contrib">${pills}</div>` : ""}
+      <div class="venn venn-why">${beforeFig(v, base[v], 10000 * base[v])}${afterFig(v, k)}${vennSrc(n.short, k, false)}</div></div></div>`;
+  });
+  box.innerHTML = html;
+}
 
 function renderWhy() {
   const keys = Object.keys(ev), lead = $("#whyLead"), list = $("#whyList");
@@ -1144,21 +1179,22 @@ function vennLabels(g, nums) {
 const nfm = (x) => x >= 100 ? Math.round(x).toLocaleString("es-MX") : x >= 10 ? x.toFixed(0) : x.toFixed(1);
 const rndm = (x) => x >= 10 ? Math.round(x) : Math.round(x * 10) / 10;
 function countsOf(c) {
-  const b = bayesOf(c), T = 10000, nA = T * b.pA, nN = T - nA, inter = rndm(nA * b.pBA), soloB = rndm(nN * b.pBnA);
-  return { b, nA, nN, inter, soloB, tot: inter + soloB };
+  const b = bayesOf(c), T = 10000, nA = T * b.pA, nN = T - nA, inter = rndm(nA * b.pBA), tot = rndm(T * b.pB), soloB = Math.round((tot - inter) * 10) / 10;
+  return { b, nA, nN, inter, soloB, tot };
 }
-function vennSrc(nm, k) {
+function vennSrc(nm, k, isCause = true) {
   const b = k.b, f = nfm;
   return `<div class="vsrc"><p><b>¿De dónde salen estos números?</b> Los porcentajes se convierten en momentos: se multiplica el porcentaje por el grupo del que se habla (por ejemplo, 25 % de 10,000 = 2,500).</p><ol>
-    <li><b>${f(k.nA)}</b> momentos con «${nm}» = <span class="mono">10,000 × ${pc1(b.pA)}</span><small>P(A): qué tan común es la causa al inicio (sección 7 del reporte).</small></li>
-    <li><b>${f(k.inter)}</b> de ellos tienen además lo que marcaste = <span class="mono">${f(k.nA)} × ${pc1(b.pBA)}</span><small>P(B | A): cuando está la causa, qué tan seguido pasa lo que marcaste.</small></li>
-    <li><b>${f(k.soloB)}</b> momentos tienen lo que marcaste sin la causa = <span class="mono">${f(k.nN)} × ${pc1(b.pBnA)}</span><small>P(B | no A): sin la causa, qué tan seguido pasa de todos modos (por otras causas).</small></li>
+    <li><b>${f(k.nA)}</b> momentos con «${nm}» = <span class="mono">10,000 × ${pc1(b.pA)}</span><small>${isCause ? "P(A): qué tan común es la causa al inicio (sección 7 del reporte)." : `P(A): qué tan seguido pasa «${nm}» en general, sin marcar nada. La red lo calcula con las tablas del reporte.`}</small></li>
+    <li><b>${f(k.inter)}</b> de ellos tienen además lo que marcaste = <span class="mono">${f(k.nA)} × ${pc1(b.pBA)}</span><small>P(B | A): cuando está «${nm}», qué tan seguido pasa lo que marcaste.</small></li>
+    <li><b>${f(k.soloB)}</b> momentos tienen lo que marcaste sin «${nm}» = <span class="mono">${f(k.nN)} × ${pc1(b.pBnA)}</span><small>P(B | no A): sin «${nm}», qué tan seguido pasa de todos modos (por otras razones).</small></li>
     <li><b>${f(k.tot)}</b> momentos en total con lo que marcaste = <span class="mono">${f(k.inter)} + ${f(k.soloB)}</span><small>P(B) = ${pc1(b.pB)} de los 10,000.</small></li>
-    <li><b>${pc1(b.post)}</b> = <span class="mono">${f(k.inter)} ÷ ${f(k.tot)}</span><small>P(A | B): la parte de lo marcado que tiene la causa. Es el resultado.</small></li>
+    <li><b>${pc1(b.post)}</b> = <span class="mono">${f(k.inter)} ÷ ${f(k.tot)}</span><small>P(A | B): la parte de lo marcado que tiene «${nm}». Es el resultado.</small></li>
   </ol><p style="margin-top:6px;color:var(--muted);font-size:12.5px">P(B | A) y P(B | no A) los calcula la red con las tablas de la sección 8 del reporte; «¿De dónde salen los tres datos?» en la sección 04 lo explica.</p></div>`;
 }
+function colorOf(v) { return N[v].color ? `var(${N[v].color})` : N[v].kind === "inter" ? "var(--inter-ink)" : "var(--pencil)"; }
 function beforeFig(c, pA, nA) {
-  const nm = N[c].short, col = `var(${N[c].color})`, r0 = Math.min(88, Math.sqrt(pA * 180 * 180 / Math.PI));
+  const nm = N[c].short, col = colorOf(c), r0 = Math.min(88, Math.sqrt(pA * 180 * 180 / Math.PI));
   return `<figure><svg viewBox="0 0 300 236" role="img" aria-label="Antes: ${nm} en el cuadro de 10,000 momentos">
       <rect x="60" y="20" width="180" height="180" fill="none" stroke="var(--rule)" stroke-width="2"/>
       <circle cx="150" cy="110" r="${r0.toFixed(1)}" fill="${col}" fill-opacity=".6" stroke="${col}" stroke-width="2.5"/>
@@ -1167,7 +1203,7 @@ function beforeFig(c, pA, nA) {
     <figcaption><h4>Antes: ${pc1(pA)}</h4><p>Sin pistas, «${nm}» ocupa ${nfm(nA)} de los 10,000 momentos: ${nfm(nA)} ÷ 10,000 = ${pc1(pA)}.</p></figcaption></figure>`;
 }
 function afterFig(c, k) {
-  const nm = N[c].short, col = `var(${N[c].color})`, g = vennGeom(k.nA, k.tot, k.inter), id = "wclip-" + c, f = nfm;
+  const nm = N[c].short, col = colorOf(c), g = vennGeom(k.nA, k.tot, k.inter), id = "wclip-" + c, f = nfm;
   return `<figure><svg viewBox="0 0 300 236" role="img" aria-label="Después: solo dentro de lo que marcaste">
       <defs><clipPath id="${id}"><circle cx="${g.xB.toFixed(1)}" cy="${g.cy}" r="${g.rB.toFixed(1)}"/></clipPath></defs>
       <circle cx="${g.xA.toFixed(1)}" cy="${g.cy}" r="${g.rA.toFixed(1)}" fill="none" stroke="${col}" stroke-width="2" stroke-dasharray="5 5" opacity=".6"/>
@@ -1232,7 +1268,7 @@ function renderCount() {
       <p class="small">Cada cuadrito es 1 % de los momentos. Marca una pista y aquí verás cómo se cuentan solo los momentos en que pasa lo que ves.</p>`;
   } else {
     const b = bayesOf(c);
-    const nA = T * b.pA, nN = T - nA, A = rnd(nA * b.pBA), B = rnd(nN * b.pBnA), tot = A + B;
+    const nA = T * b.pA, nN = T - nA, A = rnd(nA * b.pBA), tot = rnd(T * b.pB), B = Math.round((tot - A) * 10) / 10;
     fill = Math.round(b.post * 100);
     vh = vennHTML({ c, nm, nA: nA, inter: A, totB: tot, f: nf, pBA: pc1(b.pBA), post: pc1(b.post), evt: Object.keys(ev).map((k) => `${N[k].short}: ${ev[k] ? "Sí" : "No"}`).join(" · ") });
     html = `<p class="sum">De 10,000 momentos del servidor, lo que marcaste pasa en <b>${nf(tot)}</b>. En <b>${nf(A)}</b> de ellos hay «${nm}».<br><span class="mono">${nf(A)} ÷ ${nf(tot)} = <b>${pc1(b.post)}</b></span></p>
