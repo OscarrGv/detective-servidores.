@@ -395,6 +395,12 @@ table.ing small { color: var(--muted); display: block; }
 .vsrc li small { display: block; color: var(--muted); font-size: 12.5px; }
 .vsrc .mono { font-family: var(--f-mono); white-space: nowrap; }
 .venn-why { margin: 10px 0 4px; }
+.vdet { margin-top: 8px; }
+.vdet > summary { cursor: pointer; display: inline-block; font-weight: 700; font-size: 13.5px; color: var(--accent); border: 1.5px solid var(--accent); background: var(--accent-soft); padding: 3px 12px; border-radius: 16px; list-style: none; }
+.vdet > summary::-webkit-details-marker { display: none; }
+.vdet > summary::before { content: "▸ "; }
+.vdet[open] > summary::before { content: "▾ "; }
+.vdet[open] > summary { margin-bottom: 4px; }
 .vfx { font-size: 14.5px; justify-content: flex-start; background: var(--paper); }
 .clue-h { margin: 24px 0 8px; font-size: 19px; }
 #whyClues:empty { display: none; }
@@ -1136,7 +1142,7 @@ function renderClues() {
     const k = countsOf(v);
     html += `<div class="why-item"><div class="stripe" style="background:${colorOf(v)}"></div><div><h3>${title}</h3><p>${text}</p>
       ${pills ? `<div class="contrib">${pills}</div>` : ""}
-      <div class="venn venn-why">${beforeFig(v, base[v], 10000 * base[v])}${afterFig(v, k)}${vennSrc(n.short, k, false)}</div></div></div>`;
+      ${vdet("c-" + v, `<div class="venn venn-why">${beforeFig(v, base[v], 10000 * base[v])}${afterFig(v, k)}${vennSrc(n.short, k, false)}</div>`)}</div></div>`;
   });
   box.innerHTML = html;
 }
@@ -1226,11 +1232,16 @@ function calcFor(c) {
     <p class="see">En la sección 05 está esta misma cuenta hecha con 10,000 momentos imaginarios.</p>
   </div>`;
 }
+const openDet = new Set();
+function vdet(key, inner) {
+  return `<details class="vdet" data-k="${key}"${openDet.has(key) ? " open" : ""}><summary>Ver el dibujo y de dónde salen los números</summary>${inner}</details>`;
+}
+document.addEventListener("toggle", (e) => { const d = e.target; if (d && d.classList && d.classList.contains("vdet")) { d.open ? openDet.add(d.dataset.k) : openDet.delete(d.dataset.k); } }, true);
 function whyItem(c, title, text, contrib, tag, calc, pic) {
   const d = document.createElement("div"); d.className = "why-item";
   d.innerHTML = `<div class="stripe" style="background:var(${N[c].color})"></div><div><h3>${title}</h3><p>${text}</p>
     ${tag ? `<span class="tag">${tag}</span>` : ""}
-    ${pic || ""}
+    ${pic ? vdet("w-" + c, pic) : ""}
     ${contrib.length ? `<div class="contrib">${contrib.map((x) => `<span class="pill ${x.d > 0 ? "up" : "down"}" title="Cuánto cambia si quitas esa pista">${N[x.k].short} = ${ev[x.k] ? "Sí" : "No"}: <span class="mono">${pts(x.d)}</span> pts</span>`).join("")}</div>` : ""}
     ${calc ? `<details class="calc"><summary>Ver la cuenta</summary>${calc}</details>` : ""}</div>`;
   return d;
