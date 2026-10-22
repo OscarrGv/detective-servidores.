@@ -367,6 +367,9 @@ table.ing small { color: var(--muted); display: block; }
 .see { font-size: 13px; color: var(--muted); }
 .steps.top5 th, .steps.top5 td { text-align: center; padding: 5px 4px; font-size: 12px; }
 .steps.top5 th.mk, .steps.top5 td.mk { background: var(--mark); }
+.steps.top5.grp tr.tot td { background: var(--mark); border-top: 2px solid var(--ink); }
+.gl { margin: 4px 0 8px; padding-left: 20px; font-size: 14px; }
+.gl li { margin: 3px 0; }
 .steps.top5 td.si { font-weight: 800; color: var(--si); }
 .steps.top5 td.no { color: var(--muted); }
 .steps tr.start td { background: var(--accent-soft); }
@@ -1184,6 +1187,33 @@ function momentosTop() {
   <div class="steps-wrap"><table class="steps top5"><thead>${head}</thead><tbody>${body}</tbody></table></div>
   <p style="font-size:13px;color:var(--muted)">Las columnas en amarillo son lo que marcaste (igual en todas las filas). Si todas las causas estuvieran en No, ese momento ocurriría en muy pocos casos, porque nada explicaría la pista que marcaste: por eso en los momentos más comunes siempre aparece alguna causa en Sí. Las causas pueden aparecer juntas: dos o más en Sí en la misma fila.</p>`;
 }
+function gruposHTML() {
+  const fmtn = (x) => Math.round(x).toLocaleString("es-MX"), VARS = [...CAUSAS, "Bloqueos"], G = {}, a = new Array(9);
+  for (let m = 0; m < 512; m++) {
+    for (let i = 0; i < 9; i++) a[i] = (m >> (8 - i)) & 1;
+    let ok = true; for (const k in ev) if (a[IDX[k]] !== ev[k]) { ok = false; break; }
+    if (!ok) continue;
+    const key = VARS.map((v) => a[IDX[v]]).join(""); G[key] = (G[key] || 0) + joint(a) * 10000;
+  }
+  const rows = Object.entries(G).sort((x, y) => y[1] - x[1]), T = rows.reduce((t, r) => t + r[1], 0), TOP = 6, shown = rows.slice(0, TOP);
+  const cell = (v, ch) => `<td class="${ev[v] !== undefined ? "mk " : ""}${ch === "1" ? "si" : "no"}">${ch === "1" ? "Sí" : "No"}</td>`;
+  const head = `<tr><th>#</th>${VARS.map((v) => `<th>${N[v].short}</th>`).join("")}<th>Días de 10,000</th><th>% del total</th></tr>`;
+  let acc = 0;
+  const body = shown.map((r, i) => { acc += Math.round(r[1]); return `<tr><td>${i + 1}</td>${[...r[0]].map((ch, j) => cell(VARS[j], ch)).join("")}<td><b>${fmtn(r[1])}</b></td><td>${(r[1] / T * 100).toFixed(0)} %</td></tr>`; }).join("");
+  const rest = rows.length - TOP, restN = Math.round(T) - acc;
+  const otros = rest > 0 ? `<tr><td colspan="6" style="text-align:left">Las otras ${rest} situaciones (más raras)</td><td><b>${fmtn(restN)}</b></td><td>${(restN / T * 100).toFixed(0)} %</td></tr>` : "";
+  const total = `<tr class="tot"><td colspan="6" style="text-align:left"><b>TOTAL = suma de todas las filas</b></td><td><b>${fmtn(T)}</b></td><td>100 %</td></tr>`;
+  const marc = Object.keys(ev).map((k) => `«${N[k].short.toLowerCase()}: ${ev[k] ? "Sí" : "No"}»`).join(", ");
+  const lineas = CAUSAS.filter((c) => ev[c] === undefined).map((c) => {
+    const j = VARS.indexOf(c), num = rows.reduce((t, r) => t + (r[0][j] === "1" ? r[1] : 0), 0);
+    return `<li><b>${N[c].short}</b>: aparece en ${fmtn(num)} de los ${fmtn(T)} días → ${fmtn(num)} ÷ ${fmtn(T)} = <b>${(num / T * 100).toFixed(1)} %</b></li>`;
+  }).join("");
+  return `<div class="steps-wrap"><table class="steps top5 grp"><thead>${head}</thead><tbody>${body}${otros}${total}</tbody></table></div>
+  <p style="font-size:13px;color:var(--muted)">Cada fila es una combinación de causas. Sus días salen de sumar, solo entre los días que coinciden con lo que marcaste (${marc}), todos los casos con esas causas. Las pistas que no marcaste se suman sin separarlas.</p>
+  <p><b>3. Ese total es el que usa todo lo demás.</b> Los <b>${fmtn(T)}</b> días son los que quedan después de tirar los que contradicen lo que marcaste (${(T / 100).toFixed(1)} % de 10,000; es <b>P(B) = ${pe.toFixed(4)}</b>, el «círculo verde» de la sección 05). Ahora, para cada causa, suma solo las filas donde esa causa está en Sí y divídela entre el total:</p>
+  <ul class="gl">${lineas}</ul>
+  <p style="font-size:13px;color:var(--muted)">Esos porcentajes son exactamente los círculos de la sección 01 y de la sección «¿Por qué cambió?». No hay otro paso escondido.</p>`;
+}
 function momentoTabla(a) {
   let run = 10000;
   const fmtn = (x) => Math.round(x).toLocaleString("es-MX");
@@ -1218,13 +1248,15 @@ function renderWhy() {
       <p><b>P(A), la probabilidad inicial de la causa.</b> No se calcula: el equipo la fijó en la sección 7 del reporte («Probabilidades»), según qué tan seguido ocurre cada problema en un servidor típico. Los valores son: ${priors}.${labMod ? " <i>(Ahora mismo están cambiados desde el Laboratorio, sección 08.)</i>" : ""}</p>
       <p><b>P(B) y P(B | A).</b> Estos no aparecen escritos en el reporte. La red los calcula con las tablas de probabilidad condicional de la sección 8 del reporte (las mismas que ves en la sección 06 de esta página al tocar un círculo). Lo hace en tres pasos:</p>
       <p><b>1. Imagina un momento cualquiera del servidor.</b> En ese momento cada una de las 9 variables está en Sí o en No. Como cada una tiene 2 opciones, hay 2⁹ = 512 momentos distintos posibles.</p>
-      <p><b>2. Calcula qué tan común es UN momento concreto.</b> <i>¿Para qué?</i> Porque la red no «ve» el servidor: solo sabe contar cuántos de los 10,000 momentos imaginarios se parecen a lo que marcaste. Para contarlos, primero mide qué tan común es cada momento posible. Lo hace así: arranca con los 10,000 momentos y cada dato del momento <u>recorta</u> el grupo, porque solo se queda la parte que cumple ese dato. Ejemplo con el momento más probable que coincide con lo que marcaste:</p>
-      ${momentoTabla(tc.a)}
-      <p style="font-size:13px;color:var(--muted);margin:4px 0"><span class="tg2 m" style="padding:0 6px;border-radius:8px">lo marcaste tú</span> = viene de lo que clicaste, no se elige. <span class="tg2 c" style="padding:0 6px;border-radius:8px">lo elige el cálculo</span> = lo que no marcaste puede estar en Sí o en No; el cálculo prueba todas las opciones y aquí se muestra la más probable.</p>
-      ${momentosTop()}
-      <div class="ops">Quedan <b>${Math.round(tc.p * 10000).toLocaleString("es-MX")} de 10,000</b> (${tc.p.toFixed(5)}; el mismo resultado que multiplicar ${facs.map((f) => f.f.toFixed(2)).join(" × ")}).</div>
-      <p><i>¿Y eso qué significa?</i> Que más o menos ${(tc.p * 100).toFixed(1)} de cada 100 momentos del servidor se ven exactamente así, con los 9 datos de la tabla. Por sí solo no responde nada: es una de las piezas que se suman en el paso 3. Se repite lo mismo con cada uno de los momentos que coinciden con lo que marcaste.</p>
-      <p><b>3. Suma solo los momentos que coinciden con lo que ves.</b> De los 512 momentos, en ${nKeep} pasa justo lo que marcaste; los otros ${512 - nKeep} se descartan porque contradicen lo que ves. Al sumar las probabilidades de esos ${nKeep} momentos sale <b>P(B) = ${pe.toFixed(4)}</b>: lo que marcaste pasa en ${pc1(pe)} del tiempo.</p>
+      <p><b>2. Cuenta cuántos de los 10,000 días son de cada situación.</b> Una «situación» es una combinación de las causas (por ejemplo, «solo faltan índices»). Para cada una se cuenta cuántos de los 10,000 días caen ahí <u>y además</u> coinciden con lo que marcaste:</p>
+      ${gruposHTML()}
+      <details class="calc"><summary>¿Cómo se calcula una de esas filas? (ejemplo de un momento completo)</summary>
+        <p>Cada fila de la tabla es una suma de «momentos completos» (los 9 datos). Así se calcula <u>uno</u> de esos momentos: se arranca con 10,000 días y cada dato se queda con la parte que cumple.</p>
+        ${momentoTabla(tc.a)}
+        <p style="font-size:13px;color:var(--muted)"><span class="tg2 m" style="padding:0 6px;border-radius:8px">lo marcaste tú</span> = viene de lo que clicaste. <span class="tg2 c" style="padding:0 6px;border-radius:8px">lo elige el cálculo</span> = lo que no marcaste puede estar en Sí o en No; este ejemplo es el momento más común.</p>
+        <div class="ops">Este momento: <b>${Math.round(tc.p * 10000).toLocaleString("es-MX")} de 10,000</b> (${tc.p.toFixed(5)} = ${facs.map((f) => f.f.toFixed(2)).join(" × ")}).</div>
+        ${momentosTop()}
+      </details>
       <p>Para <b>P(B | A)</b> se suman solo los momentos que, además, tienen la causa, y el resultado se divide entre P(A). Por ejemplo, con «${N[top].short}»: los momentos con la causa y con lo que marcaste suman ${pAB.toFixed(4)}, y ${pAB.toFixed(4)} ÷ ${bt.pA.toFixed(3)} = <b>${bt.pBA.toFixed(3)}</b>. Ese es el ${pc1(bt.pBA)} que aparece en su cuenta.</p>
       <p class="why4"><b>¿Para qué sirve saber esto?</b> Para comprobar que ningún porcentaje de la página es inventado: todos salen solo de los números del reporte (secciones 7 y 8). Si cambias uno de esos números en el Laboratorio (sección 08), todas las cuentas cambian a partir de él. Es lo mismo que hace la función <code>calcular_a_mano()</code> del programa.</p>
     </div></details>`;
