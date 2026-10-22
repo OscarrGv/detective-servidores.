@@ -266,6 +266,20 @@ table.cpt { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width
 .slider .wf { max-width: 300px; width: 100%; display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 2px; }
 .slider .wf i { aspect-ratio: 1; border-radius: 2px; background: var(--hair); display: block; }
 .slider .wf i.on { background: var(--kc); }
+.noisy { margin-top: 16px; border: 1.5px solid var(--rule); background: var(--paper); border-radius: var(--r); padding: 14px 16px 16px; }
+.noisy h4 { margin: 0 0 6px; font-size: 15.5px; }
+.noisy .ideas { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 10px 0 14px; }
+.noisy .idea { background: var(--paper-2); border-radius: var(--r); padding: 10px 12px; font-size: 13.5px; }
+.noisy .idea b.k { display: inline-block; background: var(--accent); color: #fff; width: 20px; height: 20px; line-height: 20px; text-align: center; border-radius: 50%; margin-right: 6px; font-size: 12px; }
+.noisy .tg { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.noisy .tg button { border: 2px solid var(--kc); background: var(--paper); border-radius: 18px; padding: 4px 12px; font-weight: 700; font-size: 13.5px; }
+.noisy .tg button[aria-pressed="true"] { background: var(--kc); color: #2b2b2b; }
+.noisy .calc { font-family: var(--f-mono); font-size: 14px; background: var(--paper-2); padding: 10px 12px; border-radius: var(--r); line-height: 1.8; }
+.noisy .calc .ok { background: var(--pista); padding: 0 4px; border-radius: 3px; }
+.noisy .wf2 { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 2px; max-width: 360px; margin: 10px 0 4px; }
+.noisy .wf2 i { aspect-ratio: 1; border-radius: 2px; background: var(--pista); display: block; }
+.noisy .wf2 i.slow { background: var(--no); }
+.noisy .lg { font-size: 12.5px; color: var(--muted); }
 .slider .vn { width: 100%; max-width: 300px; height: auto; }
 .slider .say { margin: 0; font-size: 13px; color: var(--ink); }
 .slider .say b { background: color-mix(in srgb, var(--kc) 30%, white); padding: 0 3px; border-radius: 2px; }
@@ -948,19 +962,49 @@ function buildObs() {
     h.innerHTML = `<h3 class="lab-h"><span class="n">${g[0]}</span>${g[1]}</h3><p class="lab-p">${g[2]}</p><div class="lab-grid"></div>`;
     lab.appendChild(h); return h.querySelector(".lab-grid");
   });
+  let noisyRender = () => {};
   sliders.forEach((s) => {
     const d = document.createElement("div"); d.className = "slider"; d.style.setProperty("--kc", s.color);
     const flow = s.from ? `<div class="flow"><span class="pill">${s.from}</span><span class="arr">→</span><span class="pill out">${s.to}</span></div>` : "";
     d.innerHTML = `<div class="top"><label class="ttl" for="${s.id}">${s.grp ? "" : "Qué tan común es: "}${s.label}</label><span class="big" id="${s.id}-v"></span></div>${flow}${s.grp ? `<svg class="vn" viewBox="0 0 300 128" role="img" aria-label="Diagrama de círculos"></svg>` : `<div class="wf">${"<i></i>".repeat(100)}</div>`}<input type="range" id="${s.id}" min="${s.min}" max="${s.max}" step="1"><p class="say"></p><small>${s.note}</small>`;
     holders[s.grp].appendChild(d);
     const inp = d.querySelector("input"), out = d.querySelector(".big"), say = d.querySelector(".say"), cells = d.querySelectorAll(".wf i"), vn = d.querySelector(".vn");
-    const paint = (n) => { out.textContent = n + " %"; say.innerHTML = s.say(n); cells.forEach((c, i) => c.classList.toggle("on", i < n)); if (vn) vn.innerHTML = labVenn(n, s.cols); };
+    const paint = (n) => { out.textContent = n + " %"; say.innerHTML = s.say(n); cells.forEach((c, i) => c.classList.toggle("on", i < n)); if (vn) vn.innerHTML = labVenn(n, s.cols); noisyRender(); };
     const sync = () => paint(Math.round(s.get() * 100)); 
     s.sync = sync; sync();
     inp.addEventListener("input", () => { s.set(+inp.value / 100); paint(+inp.value); update({ label: "Laboratorio", quiet: true, keepHist: true }); });
     const prev = sync; s.sync = () => { inp.value = Math.round(s.get() * 100); prev(); };
     inp.value = Math.round(s.get() * 100);
   });
+  const NZ = document.createElement("div"); NZ.className = "noisy";
+  NZ.innerHTML = `<h4>¿Qué es Noisy-OR y por qué se usa aquí?</h4>
+  <p style="margin:0;font-size:14px"><b>El problema:</b> «Sistema lento» tiene 3 causas (índices, operaciones en espera, disco). Su tabla necesitaría <b>8 filas</b>, una por cada combinación de Sí/No, y sin datos reales habría que inventar los 8 números. Noisy-OR evita eso: con <b>solo 3 números</b> (los de arriba) sale toda la tabla.</p>
+  <div class="ideas">
+    <div class="idea"><b class="k">1</b><b>Cada causa intenta por su cuenta.</b> Como tres personas que tratan de abrir la misma puerta por separado: cada una lo logra con su propio porcentaje (70, 60 y 50).</div>
+    <div class="idea"><b class="k">2</b><b>Basta con que una lo logre</b> (eso es el «OR», «o»). Si una sola vuelve lento el sistema, ya está lento; las demás no se estorban ni se cancelan.</div>
+    <div class="idea"><b class="k">3</b><b>«Noisy» = ruidoso, imperfecto.</b> Que la causa esté presente no garantiza la lentitud: puede fallar. Por eso 70 % y no 100 %. Y hay un 3 % de «otras causas» que siempre intentan.</div>
+    <div class="idea"><b class="k">4</b><b>Rápido solo si todas fallan.</b> Cada una falla con (1 − su porcentaje), y como son independientes esos fallos se <u>multiplican</u>. Lento = 1 − (todos fallan).</div>
+  </div>
+  <b style="font-size:14px">Pruébalo: prende las causas que estén presentes</b>
+  <div class="tg" id="nzTg"></div>
+  <div class="calc" id="nzCalc"></div>
+  <div class="wf2" id="nzWf"></div>
+  <div class="lg"><span style="color:var(--no)">■</span> casos con el sistema lento &nbsp; <span style="color:var(--pista-ink)">■</span> casos con el sistema rápido &nbsp;(de cada 100). Cada vez que prendes una causa, aparecen más rojos. Es una fila de la tabla de «Sistema lento».</div>
+  <p style="margin:10px 0 0;font-size:13.5px"><b>¿Por qué aquí sí aplica?</b> Porque cada una de estas tres causas puede, por sí sola, volver lento el sistema y ninguna necesita a las otras. Si una causa necesitara a otra para funcionar (por ejemplo, «solo molesta si además pasa tal cosa»), Noisy-OR no sería la regla correcta.</p>`;
+  holders[1].parentElement.appendChild(NZ);
+  const NZC = [["i", "Tablas sin índices", "--c1"], ["b", "Operaciones en espera", "--inter"], ["d", "Disco lleno o lento", "--c2"]];
+  const nzOn = { i: true, b: false, d: true };
+  const tg = NZ.querySelector("#nzTg");
+  NZC.forEach(([k, nm, col]) => { const b = document.createElement("button"); b.textContent = nm; b.style.setProperty("--kc", `var(${col})`); b.setAttribute("aria-pressed", nzOn[k]); b.addEventListener("click", () => { nzOn[k] = !nzOn[k]; b.setAttribute("aria-pressed", nzOn[k]); noisyRender(); }); tg.appendChild(b); });
+  const wf2 = NZ.querySelector("#nzWf"); for (let i = 0; i < 100; i++) wf2.appendChild(document.createElement("i"));
+  noisyRender = () => {
+    const parts = [`0.97`], txt = [`<span class="ok">0.97</span> <small>(otras causas fallan)</small>`]; let rap = .97;
+    NZC.forEach(([k, nm]) => { if (nzOn[k]) { const f = 1 - P.nor[k]; rap *= f; parts.push(f.toFixed(2)); txt.push(`<span class="ok">${f.toFixed(2)}</span> <small>(falla ${nm.toLowerCase()}: 1 − ${P.nor[k].toFixed(2)})</small>`); } });
+    const res = round2(1 - rap), n = Math.round(res * 100);
+    NZ.querySelector("#nzCalc").innerHTML = `Todas fallan = ${txt.join(" × ")}<br>= <b>${rap.toFixed(2)}</b> → el sistema sigue rápido<br>Lento = 1 − ${rap.toFixed(2)} = <b>${res.toFixed(2)}</b> &nbsp;(${n} de cada 100)`;
+    wf2.querySelectorAll("i").forEach((c, i) => c.classList.toggle("slow", i < n));
+  };
+  noisyRender();
   lab._sliders = sliders;
   $("#labReset").addEventListener("click", () => { P = JSON.parse(JSON.stringify(DEFAULT)); lab._sliders.forEach((s) => s.sync()); update({ label: "Valores del reporte", quiet: true }); });
 }
