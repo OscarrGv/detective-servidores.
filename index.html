@@ -249,11 +249,26 @@ table.cpt { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width
 .hist-steps ol { margin: 4px 0 0; padding-left: 22px; }
 
 /* ---------- laboratorio ---------- */
-.lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px 24px; }
-.slider { display: grid; gap: 4px; }
-.slider label { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: 14px; }
-.slider label span { font-family: var(--f-mono); }
-.slider small { color: var(--muted); font-size: 12.5px; font-family: var(--f-mono); }
+.lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.lab-h { margin: 18px 0 4px; font-size: 15px; font-weight: 800; display: flex; gap: 8px; align-items: baseline; }
+.lab-h:first-child { margin-top: 4px; }
+.lab-h .n { font-family: var(--f-mono); font-size: 12px; background: var(--accent-soft); color: var(--accent); padding: 1px 7px; border-radius: 2px; }
+.lab-p { margin: 0 0 10px; color: var(--muted); font-size: 13.5px; max-width: 80ch; }
+.slider { display: grid; gap: 8px; border: 1.5px solid var(--hair); border-top: 5px solid var(--kc, var(--accent)); border-radius: var(--r); padding: 10px 12px 12px; background: var(--paper); }
+.slider .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.slider .ttl { font-weight: 700; font-size: 14px; line-height: 1.25; }
+.slider .big { font-family: var(--f-mono); font-weight: 700; font-size: 20px; color: var(--ink); background: color-mix(in srgb, var(--kc) 28%, white); padding: 1px 8px; border-radius: 3px; white-space: nowrap; }
+.slider input[type=range] { accent-color: var(--kc, var(--accent)); }
+.slider .flow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; font-weight: 700; }
+.slider .pill { padding: 2px 8px; border-radius: 10px; background: var(--kc); color: #2b2b2b; }
+.slider .pill.out { background: var(--pista); }
+.slider .arr { font-size: 18px; line-height: 1; color: var(--muted); }
+.slider .wf { max-width: 300px; display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; }
+.slider .wf i { aspect-ratio: 1; border-radius: 2px; background: var(--hair); display: block; }
+.slider .wf i.on { background: var(--kc); }
+.slider .say { margin: 0; font-size: 13px; color: var(--ink); }
+.slider .say b { background: color-mix(in srgb, var(--kc) 30%, white); padding: 0 3px; border-radius: 2px; }
+.slider small { color: var(--muted); font-size: 12px; font-family: var(--f-mono); }
 input[type=range] { width: 100%; accent-color: var(--accent); }
 .lab-flag { display: none; margin-top: 14px; padding: 10px 12px; background: var(--mark); color: var(--mark-ink); font-size: 14px; }
 .lab-flag.on { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -494,7 +509,7 @@ table.map td:first-child { font-family: var(--f-mono); }
 
     <section class="panel lab" id="laboratorio" aria-label="Laboratorio">
       <div class="sheet-head"><span class="no">08</span><h2>Laboratorio</h2><small>cambia los supuestos y mira qué pasa</small></div>
-      <div class="lab-grid" id="labGrid"></div>
+      <div id="labGrid"></div>
       <div class="lab-flag" id="labFlag"><span>Cambiaste los supuestos: estos resultados ya no son los del reporte.</span><button id="labReset">Volver a los valores del reporte</button></div>
     </section>
   </main>
@@ -884,20 +899,40 @@ function buildObs() {
   const w = $("#waffle"); for (let i = 0; i < 100; i++) w.appendChild(document.createElement("i"));
   // laboratorio
   const lab = $("#labGrid");
+  const CAUSA_FRASE = { CargaAlta: "hay muchos usuarios a la vez", IndicesFaltantes: "faltan índices en las tablas", DiscoSaturado: "el disco está lleno o lento", FallaRed: "falla la red" };
   const sliders = [
-    ...CAUSAS.map((c) => ({ id: "pr-" + c, label: `Qué tan común es: ${N[c].short}`, note: "Probabilidad inicial", min: 1, max: 60, get: () => P.prior[c], set: (x) => (P.prior[c] = x) })),
-    { id: "nor-i", label: "Fuerza de «tablas sin índices» para volverlo lento", note: "Regla Noisy-OR", min: 5, max: 95, get: () => P.nor.i, set: (x) => (P.nor.i = x) },
-    { id: "nor-b", label: "Fuerza de «operaciones en espera»", note: "Regla Noisy-OR", min: 5, max: 95, get: () => P.nor.b, set: (x) => (P.nor.b = x) },
-    { id: "nor-d", label: "Fuerza de «disco lleno o lento»", note: "Regla Noisy-OR", min: 5, max: 95, get: () => P.nor.d, set: (x) => (P.nor.d = x) },
+    ...CAUSAS.map((c) => ({ grp: 0, id: "pr-" + c, label: N[c].short, color: `var(${N[c].color})`, min: 1, max: 60,
+      note: "Probabilidad inicial: antes de ver ninguna pista",
+      say: (n) => `De cada 100 revisiones del servidor, en <b>${n}</b> ${CAUSA_FRASE[c]}.`,
+      get: () => P.prior[c], set: (x) => (P.prior[c] = x) })),
+    { grp: 1, id: "nor-i", label: "Tablas sin índices", from: "Tablas sin índices", color: "var(--c1)", min: 5, max: 95, note: "Regla Noisy-OR",
+      say: (n) => `Si faltan índices, el sistema se vuelve lento en <b>${n}</b> de cada 100 casos.`, get: () => P.nor.i, set: (x) => (P.nor.i = x) },
+    { grp: 1, id: "nor-b", label: "Operaciones en espera", from: "Operaciones en espera", color: "var(--inter)", min: 5, max: 95, note: "Regla Noisy-OR",
+      say: (n) => `Si hay operaciones en espera, el sistema se vuelve lento en <b>${n}</b> de cada 100 casos.`, get: () => P.nor.b, set: (x) => (P.nor.b = x) },
+    { grp: 1, id: "nor-d", label: "Disco lleno o lento", from: "Disco lleno o lento", color: "var(--c2)", min: 5, max: 95, note: "Regla Noisy-OR",
+      say: (n) => `Si el disco está mal, el sistema se vuelve lento en <b>${n}</b> de cada 100 casos.`, get: () => P.nor.d, set: (x) => (P.nor.d = x) },
   ];
+  const GR = [
+    ["1", "¿Qué tan común es cada causa?", "Tú decides qué tan seguido pasa cada problema <u>antes</u> de mirar ninguna pista. Cada cuadrito es 1 de cada 100 revisiones del servidor: los de color son las veces que la causa está presente."],
+    ["2", "¿Cuánta lentitud provoca cada causa?", "Aquí decides qué tan seguido una causa logra volver lento el sistema. Es la flecha de color que sale de la causa hacia «Sistema lento» en el diagrama."],
+  ];
+  const holders = GR.map((g) => {
+    const h = document.createElement("div");
+    h.innerHTML = `<h3 class="lab-h"><span class="n">${g[0]}</span>${g[1]}</h3><p class="lab-p">${g[2]}</p><div class="lab-grid"></div>`;
+    lab.appendChild(h); return h.querySelector(".lab-grid");
+  });
   sliders.forEach((s) => {
-    const d = document.createElement("div"); d.className = "slider";
-    d.innerHTML = `<label for="${s.id}">${s.label}<span id="${s.id}-v"></span></label><input type="range" id="${s.id}" min="${s.min}" max="${s.max}" step="1"><small>${s.note}</small>`;
-    lab.appendChild(d);
-    const inp = d.querySelector("input"), out = d.querySelector("span");
-    const sync = () => { inp.value = Math.round(s.get() * 100); out.textContent = Math.round(s.get() * 100) + " %"; };
+    const d = document.createElement("div"); d.className = "slider"; d.style.setProperty("--kc", s.color);
+    const flow = s.from ? `<div class="flow"><span class="pill">${s.from}</span><span class="arr">→</span><span class="pill out">Sistema lento</span></div>` : "";
+    d.innerHTML = `<div class="top"><label class="ttl" for="${s.id}">${s.grp ? "" : "Qué tan común es: "}${s.label}</label><span class="big" id="${s.id}-v"></span></div>${flow}<div class="wf">${"<i></i>".repeat(100)}</div><input type="range" id="${s.id}" min="${s.min}" max="${s.max}" step="1"><p class="say"></p><small>${s.note}</small>`;
+    holders[s.grp].appendChild(d);
+    const inp = d.querySelector("input"), out = d.querySelector(".big"), say = d.querySelector(".say"), cells = d.querySelectorAll(".wf i");
+    const paint = (n) => { out.textContent = n + " %"; say.innerHTML = s.say(n); cells.forEach((c, i) => c.classList.toggle("on", i < n)); };
+    const sync = () => paint(Math.round(s.get() * 100)); 
     s.sync = sync; sync();
-    inp.addEventListener("input", () => { s.set(+inp.value / 100); out.textContent = inp.value + " %"; update({ label: "Laboratorio", quiet: true, keepHist: true }); });
+    inp.addEventListener("input", () => { s.set(+inp.value / 100); paint(+inp.value); update({ label: "Laboratorio", quiet: true, keepHist: true }); });
+    const prev = sync; s.sync = () => { inp.value = Math.round(s.get() * 100); prev(); };
+    inp.value = Math.round(s.get() * 100);
   });
   lab._sliders = sliders;
   $("#labReset").addEventListener("click", () => { P = JSON.parse(JSON.stringify(DEFAULT)); lab._sliders.forEach((s) => s.sync()); update({ label: "Valores del reporte", quiet: true }); });
