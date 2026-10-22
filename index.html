@@ -365,17 +365,17 @@ table.ing small { color: var(--muted); display: block; }
 .subst { font-family: var(--f-mono); font-size: 13.5px; background: var(--mark); color: var(--mark-ink); padding: 7px 10px; overflow-wrap: anywhere; }
 .plain { line-height: 1.5; }
 .see { font-size: 13px; color: var(--muted); }
-.funnel { display: grid; gap: 6px; margin: 8px 0; }
-.fn-row { display: grid; grid-template-columns: minmax(120px, 42%) minmax(0, 1fr); gap: 12px; align-items: center; }
-.fn-bar { background: var(--accent); color: #fff; padding: 6px 8px; border-radius: 3px; min-width: 62px; font-family: var(--f-mono); font-size: 13px; white-space: nowrap; }
-.fn-txt { font-size: 13px; }
-@media (max-width: 640px) { .fn-row { grid-template-columns: minmax(0, 1fr); gap: 3px; } }
+.steps tr.start td { background: var(--accent-soft); }
+.steps td.fnc { min-width: 230px; }
+.fn-line { font-family: var(--f-mono); font-size: 13px; }
+.fn-track { height: 10px; background: var(--hair); border-radius: 5px; margin: 4px 0; overflow: hidden; }
+.fn-bar2 { height: 100%; background: var(--accent); border-radius: 5px; transition: width .3s; }
+.fn-say { font-size: 12.5px; color: var(--muted); }
 .steps-wrap { overflow-x: auto; margin: 8px 0; }
 .steps { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 .steps th { text-align: left; font-size: 12px; color: var(--muted); border-bottom: 2px solid var(--rule); padding: 4px 8px; }
 .steps td { padding: 7px 8px; border-bottom: 1px solid var(--hair); vertical-align: top; }
 .steps td.n { font-family: var(--f-mono); color: var(--muted); }
-.steps td.r { font-family: var(--f-mono); white-space: nowrap; }
 .tg2.m { background: var(--mark); color: var(--mark-ink); } .tg2.c { background: var(--accent-soft); color: var(--accent); }
 .steps .tg2 { font-size: 11.5px; padding: 0 6px; border-radius: 8px; }
 .steps .tg2.m { background: var(--mark); color: var(--mark-ink); }
@@ -1162,29 +1162,20 @@ function renderClues() {
   box.innerHTML = html;
 }
 
-function embudoHTML() {
-  const keys = Object.keys(ev), fm = (x) => Math.round(x).toLocaleString("es-MX");
-  let prevN = 10000, sub = {}, rows = [`<div class="fn-row"><div class="fn-bar" style="width:100%"><b>10,000</b></div><div class="fn-txt"><b>Punto de partida:</b> los 10,000 momentos imaginarios (los 512 tipos posibles de momento, repartidos según qué tan común es cada uno).</div></div>`];
-  keys.forEach((k, i) => {
-    sub[k] = ev[k]; const n = 10000 * infer(sub).pe, w = Math.max(n / 100, 3);
-    const que = `«${N[k].short}: ${ev[k] ? "Sí" : "No"}»`, opp = ev[k] ? "No" : "Sí";
-    rows.push(`<div class="fn-row"><div class="fn-bar" style="width:${w.toFixed(1)}%"><b>${fm(n)}</b></div><div class="fn-txt"><b>${i === 0 ? "Marcaste" : "Además marcaste"} ${que}.</b> Se tiran los momentos donde ${N[k].short.toLowerCase()} está en ${opp}. ${i === 0 ? `Eso pasa en ${(n / 100).toFixed(1)} de cada 100 momentos` : `De los ${fm(prevN)} que quedaban, se quedan los que también cumplen esto: ${fm(n)} (${(n / prevN * 100).toFixed(1)} % de ellos)`}. Quedan ${512 / Math.pow(2, i + 1)} de los 512 tipos de momento.</div></div>`);
-    prevN = n;
-  });
-  return `<div class="funnel">${rows.join("")}</div>`;
-}
 function momentoTabla(a) {
   let run = 10000;
+  const fmtn = (x) => Math.round(x).toLocaleString("es-MX");
   const rows = ORDEN.map((v, i) => {
     const val = a[IDX[v]], q = pSi(v, a), f = val ? q : 1 - q, par = PADRES[v] || [], marcado = ev[v] !== undefined;
-    const filaTxt = par.length ? `la fila «${par.map((p) => `${N[p].short.toLowerCase()}: ${a[IDX[p]] ? "Sí" : "No"}`).join(", ")}»` : "su probabilidad inicial";
-    const tabla = par.length ? `tabla de «${N[v].short}»` : `probabilidad inicial de «${N[v].short}»`;
-    const origen = `${par.length ? "De la " + tabla + ", " + filaTxt : "Es la probabilidad inicial de «" + N[v].short + "» (sección 7 del reporte)"}: P(Sí) = <b>${q.toFixed(2)}</b>.` + (val ? ` Aquí está en <b>Sí</b>, así que se usa ${q.toFixed(2)}.` : ` Aquí está en <b>No</b>, así que se usa 1 − ${q.toFixed(2)} = <b>${(1 - q).toFixed(2)}</b>.`);
-    const antes = run; run = run * f;
-    const fmtn = (x) => Math.round(x).toLocaleString("es-MX");
-    return `<tr><td class="n">${i + 1}</td><td><b>${N[v].short}: ${val ? "Sí" : "No"}</b><br><span class="tg2 ${marcado ? "m" : "c"}">${marcado ? "lo marcaste tú" : "lo elige el cálculo"}</span></td><td>${origen}</td><td class="r">${fmtn(antes)} × ${f.toFixed(2)}<br><b>= ${fmtn(run)}</b></td></tr>`;
+    const filaTxt = par.length ? `la fila «${par.map((p) => `${N[p].short.toLowerCase()}: ${a[IDX[p]] ? "Sí" : "No"}`).join(", ")}»` : "";
+    const origen = `${par.length ? "De la tabla de «" + N[v].short + "», " + filaTxt : "Es la probabilidad inicial de «" + N[v].short + "» (sección 7 del reporte)"}: P(Sí) = <b>${q.toFixed(2)}</b>. Aquí está en <b>${val ? "Sí" : "No"}</b>, así que se usa ${val ? q.toFixed(2) : `1 − ${q.toFixed(2)} = <b>${f.toFixed(2)}</b>`}.`;
+    const antes = run; run = run * f; const tira = antes - run;
+    const que = `${N[v].short.toLowerCase()}: ${val ? "Sí" : "No"}`;
+    const accion = marcado ? `Lo marcaste, así que <b>se tiran</b> los ${fmtn(tira)} que no cumplen (${N[v].short.toLowerCase()} en ${val ? "No" : "Sí"}).` : `Se quedan solo los que tienen ${que}; <b>se tiran</b> ${fmtn(tira)}.`;
+    return `<tr><td class="n">${i + 1}</td><td><b>${N[v].short}: ${val ? "Sí" : "No"}</b><br><span class="tg2 ${marcado ? "m" : "c"}">${marcado ? "lo marcaste tú" : "lo elige el cálculo"}</span></td><td>${origen}</td>
+      <td class="fnc"><div class="fn-line"><span class="fn-w">${fmtn(antes)}</span> × ${f.toFixed(2)} = <b>${fmtn(run)}</b></div><div class="fn-track"><div class="fn-bar2" style="width:${Math.max(run / 100, 1.5).toFixed(1)}%"></div></div><div class="fn-say">${accion}</div></td></tr>`;
   });
-  return `<div class="steps-wrap"><table class="steps"><thead><tr><th>#</th><th>Dato de este momento</th><th>De dónde sale el número</th><th>Cuántos momentos quedan (de 10,000)</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+  return `<div class="steps-wrap"><table class="steps"><thead><tr><th>#</th><th>Dato de este momento</th><th>De dónde sale el número</th><th>El grupo se va achicando (de 10,000)</th></tr></thead><tbody><tr class="start"><td class="n">0</td><td colspan="3"><b>Punto de partida:</b> los 10,000 momentos imaginarios. Cada renglón se queda solo con los que cumplen su dato y tira el resto.</td></tr>${rows.join("")}</tbody></table></div>`;
 }
 
 function renderWhy() {
@@ -1210,10 +1201,7 @@ function renderWhy() {
       <p style="font-size:13px;color:var(--muted);margin:4px 0"><span class="tg2 m" style="padding:0 6px;border-radius:8px">lo marcaste tú</span> = viene de lo que clicaste, no se elige. <span class="tg2 c" style="padding:0 6px;border-radius:8px">lo elige el cálculo</span> = lo que no marcaste puede estar en Sí o en No; el cálculo prueba todas las opciones y aquí se muestra la más probable.</p>
       <div class="ops">Quedan <b>${Math.round(tc.p * 10000).toLocaleString("es-MX")} de 10,000</b> (${tc.p.toFixed(5)}; el mismo resultado que multiplicar ${facs.map((f) => f.f.toFixed(2)).join(" × ")}).</div>
       <p><i>¿Y eso qué significa?</i> Que más o menos ${(tc.p * 100).toFixed(1)} de cada 100 momentos del servidor se ven exactamente así, con los 9 datos de la tabla. Por sí solo no responde nada: es una de las piezas que se suman en el paso 3. Se repite lo mismo con cada uno de los momentos que coinciden con lo que marcaste.</p>
-      <p><b>3. Quédate solo con los momentos que coinciden con lo que ves.</b> <i>¿Cómo se achica el grupo?</i> Ojo con la diferencia: en el paso 2 el grupo se recortó con <u>los 9 datos</u> para describir <u>un</u> momento exacto. Aquí se recorta solo con <u>lo que marcaste</u>, para quedarte con <u>todos</u> los momentos que se ven como tu caso. Se hace pista por pista:</p>
-      ${embudoHTML()}
-      <p>Al final quedan <b>${nKeep} de los 512 tipos de momento</b> (los otros ${512 - nKeep} se descartan porque contradicen lo que ves). Al sumar las probabilidades de esos ${nKeep} sale <b>P(B) = ${pe.toFixed(4)}</b>: lo que marcaste pasa en ${pc1(pe)} del tiempo, es decir, en <b>${Math.round(pe * 10000).toLocaleString("es-MX")} de los 10,000 momentos</b>. Ese es el «círculo verde» de la sección 05.</p>
-      <p>El momento del paso 2 (${Math.round(tc.p * 10000).toLocaleString("es-MX")} de 10,000) es uno de esos ${nKeep} y es el más grande de todos: ocupa ${(tc.p / pe * 100).toFixed(0)} % del grupo que queda.</p>
+      <p><b>3. Suma solo los momentos que coinciden con lo que ves.</b> De los 512 momentos, en ${nKeep} pasa justo lo que marcaste; los otros ${512 - nKeep} se descartan porque contradicen lo que ves. Al sumar las probabilidades de esos ${nKeep} momentos sale <b>P(B) = ${pe.toFixed(4)}</b>: lo que marcaste pasa en ${pc1(pe)} del tiempo.</p>
       <p>Para <b>P(B | A)</b> se suman solo los momentos que, además, tienen la causa, y el resultado se divide entre P(A). Por ejemplo, con «${N[top].short}»: los momentos con la causa y con lo que marcaste suman ${pAB.toFixed(4)}, y ${pAB.toFixed(4)} ÷ ${bt.pA.toFixed(3)} = <b>${bt.pBA.toFixed(3)}</b>. Ese es el ${pc1(bt.pBA)} que aparece en su cuenta.</p>
       <p class="why4"><b>¿Para qué sirve saber esto?</b> Para comprobar que ningún porcentaje de la página es inventado: todos salen solo de los números del reporte (secciones 7 y 8). Si cambias uno de esos números en el Laboratorio (sección 08), todas las cuentas cambian a partir de él. Es lo mismo que hace la función <code>calcular_a_mano()</code> del programa.</p>
     </div></details>`;
