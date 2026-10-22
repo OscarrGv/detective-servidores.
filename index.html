@@ -1489,18 +1489,19 @@ function treeFig(nm, k, num) {
     <p class="tr-key"><span class="ka">A</span> = «${nm}» está presente &nbsp;·&nbsp; <span class="kb">B</span> = lo que marcaste (${evText()})</p></figcaption>
   <svg viewBox="0 0 700 290" role="img" aria-label="Árbol de probabilidades de ${nm}">
     <text x="4" y="150" class="tl-t" font-weight="800">10,000</text>
-    ${br(52, 147, 160, 76, (num ? "① " : "") + "P(A) = " + pc1(k.b.pA), 96, 96)}${br(52, 147, 160, 216, "P(no A) = " + pc1(1 - k.b.pA), 200, 96)}
-    <text x="166" y="72" class="tl-t" font-weight="800"><tspan class="ka">A</tspan> «${nm}»: Sí</text><text x="166" y="87" class="tl-n">${f(k.nA)} momentos</text>
+    ${br(52, 147, 160, 76, (num === true ? "① " : "") + "P(A) = " + pc1(k.b.pA), 96, 96)}${br(52, 147, 160, 216, "P(no A) = " + pc1(1 - k.b.pA), 200, 96)}
+    <text x="166" y="72" class="tl-t" font-weight="800">${num === "pasos" ? "① " : ""}<tspan class="ka">A</tspan> «${nm}»: Sí</text><text x="166" y="87" class="tl-n">${f(k.nA)} momentos</text>
     <text x="166" y="212" class="tl-t" font-weight="800"><tspan class="ka">no A</tspan> «${nm}»: No</text><text x="166" y="227" class="tl-n">${f(k.nN)} momentos</text>
-    ${br(352, 72, 494, 38, (num ? "② " : "") + "P(B | A) = " + pc1(b.pBA), 44, 423)}${br(352, 78, 494, 112, "P(no B | A) = " + pc1(1 - b.pBA), 116, 423)}
+    ${br(352, 72, 494, 38, (num === true ? "② " : "") + "P(B | A) = " + pc1(b.pBA), 44, 423)}${br(352, 78, 494, 112, "P(no B | A) = " + pc1(1 - b.pBA), 116, 423)}
     ${br(352, 212, 494, 182, "P(B | no A) = " + pc1(b.pBnA), 184, 423)}${br(352, 218, 494, 252, "P(no B | no A) = " + pc1(1 - b.pBnA), 254, 423)}
-    ${leaf(38, true, a1, (num ? "③ " : "") + "A y B")}${leaf(112, false, a2, "A y no B")}${leaf(182, true, n1, (num ? "③ " : "") + "no A y B")}${leaf(252, false, n2, "no A y no B")}
+    ${leaf(38, true, a1, (num === true ? "③ " : num === "pasos" ? "② " : "") + "A y B")}${leaf(112, false, a2, "A y no B")}${leaf(182, true, n1, (num === true ? "③ " : num === "pasos" ? "③ " : "") + "no A y B")}${leaf(252, false, n2, "no A y no B")}
   </svg><figcaption><p>Cada rama es un porcentaje del grupo que viene de la rama anterior. Solo se quedan las hojas verdes (donde pasa <b>B</b>, lo que marcaste); las grises se tiran porque lo contradicen.</p>
-  <p><b>P(A | B)</b> = (hoja «A y B») ÷ (las dos hojas con B) = ${f(a1)} ÷ (${f(a1)} + ${f(n1)}) = ${f(a1)} ÷ ${f(k.tot)} = <b>${pc1(b.post)}</b>. Es el mismo resultado que con los círculos.</p></figcaption></figure>`;
+  ${num === "pasos" ? `<p class="tr-key">Los números ①–⑤ son los pasos de la lista «¿De dónde salen estos números?» de abajo: ① las ramas de A, ② y ③ las dos hojas verdes, ④ la suma de las dos hojas verdes (${f(a1)} + ${f(n1)} = ${f(k.tot)}), ⑤ el resultado.</p>` : ""}
+  <p><b>${num === "pasos" ? "⑤ " : ""}P(A | B)</b> = (hoja «A y B») ÷ (las dos hojas con B) = ${f(a1)} ÷ (${f(a1)} + ${f(n1)}) = ${f(a1)} ÷ ${f(k.tot)} = <b>${pc1(b.post)}</b>. Es el mismo resultado que con los círculos.</p></figcaption></figure>`;
 }
 function vennSrc(nm, k, isCause = true) {
   const b = k.b, f = nfm;
-  return `${treeFig(nm, k)}\n  <div class="vsrc"><p><b>¿De dónde salen estos números?</b> Los porcentajes se convierten en momentos: se multiplica el porcentaje por el grupo del que se habla (por ejemplo, 25 % de 10,000 = 2,500).</p><ol>
+  return `${treeFig(nm, k, "pasos")}\n  <div class="vsrc"><p><b>¿De dónde salen estos números?</b> Los porcentajes se convierten en momentos: se multiplica el porcentaje por el grupo del que se habla (por ejemplo, 25 % de 10,000 = 2,500).</p><ol>
     <li><b>${f(k.nA)}</b> momentos con «${nm}» = <span class="mono">10,000 × ${pc1(b.pA)}</span><small>${isCause ? "P(A): qué tan común es la causa al inicio (sección 7 del reporte)." : `P(A): qué tan seguido pasa «${nm}» en general, sin marcar nada. La red lo calcula con las tablas del reporte.`}</small></li>
     <li><b>${f(k.inter)}</b> de ellos tienen además lo que marcaste = <span class="mono">${f(k.nA)} × ${pc1(b.pBA)}</span><small>P(B | A): cuando está «${nm}», qué tan seguido pasa lo que marcaste.</small></li>
     <li><b>${f(k.soloB)}</b> momentos tienen lo que marcaste sin «${nm}» = <span class="mono">${f(k.nN)} × ${pc1(b.pBnA)}</span><small>P(B | no A): sin «${nm}», qué tan seguido pasa de todos modos (por otras razones).</small></li>
