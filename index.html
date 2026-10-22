@@ -418,7 +418,22 @@ table.ing small { color: var(--muted); display: block; }
 .vsrc .mono { font-family: var(--f-mono); white-space: nowrap; }
 .venn-why { margin: 10px 0 4px; }
 .venn figure.tree, figure.tree { grid-column: 1 / -1; margin: 0; background: var(--paper); border: 1px solid var(--hair); padding: 10px 12px; }
-.tree .tr-h h4 { margin: 0 0 4px; font-size: 14.5px; }
+.tree .tr-h h4 { margin: 0 0 4px; font-size: 15.5px; }
+.at-sc { overflow-x: auto; }
+.at-l { stroke: #8DA0B3; stroke-width: 1.6; fill: none; }
+.at-t { font-size: 11.5px; fill: var(--ink); font-weight: 600; }
+.at-h { font-size: 11px; fill: var(--muted); font-weight: 700; }
+.at-root { fill: var(--mark); stroke: var(--ink); }
+.at-si { fill: var(--si-soft); stroke: var(--si); }
+.at-no { fill: var(--paper-2); stroke: var(--rule); }
+.at-pr { fill: var(--paper-2); stroke: var(--rule); stroke-dasharray: 3 2; }
+.tree .tr-key { margin: 0 0 6px; font-size: 13px; }
+.tree .ka, .tree .kb { display: inline-block; font-weight: 800; padding: 0 6px; border-radius: 3px; }
+.tree .ka { background: var(--accent-soft); color: var(--accent); }
+.tree .kb { background: var(--si-soft); color: var(--si); }
+tspan.ka { fill: var(--accent); font-weight: 800; }
+.venn figure.tree { order: -1; border: 2px solid var(--accent); }
+.venn .evl { order: -2; }
 .tree-d { margin: 10px 0 4px; }
 .tree-d > summary { cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--accent); }
 .tree svg { width: 100%; max-width: 620px; height: auto; display: block; }
@@ -1199,6 +1214,33 @@ function momentosTop() {
   <div class="steps-wrap"><table class="steps top5"><thead>${head}</thead><tbody>${body}</tbody></table></div>
   <p style="font-size:13px;color:var(--muted)">Las columnas en amarillo son lo que marcaste (igual en todas las filas). Si todas las causas estuvieran en No, ese momento ocurriría en muy pocos casos, porque nada explicaría la pista que marcaste: por eso en los momentos más comunes siempre aparece alguna causa en Sí. Las causas pueden aparecer juntas: dos o más en Sí en la misma fila.</p>`;
 }
+function arbolSitHTML(rows, T, VARS) {
+  const fmtn = (x) => Math.round(x).toLocaleString("es-MX"), thr = T * 0.035, RH = 30, CW = 118, NW = 100, NH = 22, X0 = 4, Y0 = 26;
+  let leafY = 0, out = [];
+  const cnt = (p) => rows.reduce((t, r) => (r[0].startsWith(p) ? t + r[1] : t), 0), nLeaves = (p) => rows.filter((r) => r[0].startsWith(p)).length;
+  function node(p, d) {
+    const c = cnt(p), x = X0 + d * CW;
+    const pruned = d > 0 && d < VARS.length && c < thr;
+    let y, kids = [];
+    if (d === VARS.length || pruned) { y = Y0 + leafY * RH; leafY++; }
+    else {
+      for (const ch of ["1", "0"]) if (cnt(p + ch) > 0.0001) kids.push(node(p + ch, d + 1));
+      y = kids.reduce((t, kd) => t + kd.y, 0) / kids.length;
+    }
+    kids.forEach((kd) => out.push(`<path d="M${x + NW},${y + NH / 2} C${x + NW + 10},${y + NH / 2} ${x + CW - 10},${kd.y + NH / 2} ${x + CW},${kd.y + NH / 2}" class="at-l"/>`));
+    const val = d ? p[d - 1] : null;
+    const lab = d === 0 ? `Quedan ${fmtn(c)}` : pruned ? `otras ${nLeaves(p)} · ${fmtn(c)}` : `${val === "1" ? "Sí" : "No"} · ${fmtn(c)}`;
+    const cls = d === 0 ? "root" : pruned ? "pr" : val === "1" ? "si" : "no";
+    out.push(`<g><rect x="${x}" y="${y}" width="${NW}" height="${NH}" rx="4" class="at-${cls}"/><text x="${x + NW / 2}" y="${y + 15}" text-anchor="middle" class="at-t">${lab}</text></g>`);
+    return { y };
+  }
+  node("", 0);
+  const H = Y0 + leafY * RH + 6, W = X0 + VARS.length * CW + NW + 4;
+  const hd = VARS.map((v, i) => `<text x="${X0 + (i + 1) * CW + NW / 2}" y="14" text-anchor="middle" class="at-h">${v === "Bloqueos" ? "Op. en espera" : N[v].short}</text>`).join("");
+  return `<figure class="tree sit"><figcaption class="tr-h"><h4>Las situaciones, como árbol</h4></figcaption>
+  <div class="at-sc"><svg viewBox="0 0 ${W} ${H}" style="min-width:640px" role="img" aria-label="Árbol de situaciones">${hd}${out.join("")}</svg></div>
+  <figcaption><p><b>Cómo leerlo:</b> de izquierda a derecha, el grupo se parte según si cada causa está en Sí o en No. El número de cada caja son los días (de 10,000) que siguen coincidiendo con lo que marcaste. Las cajas de la derecha son las situaciones de la tabla; si las sumas todas, da el total (${fmtn(T)}). Las ramas muy chicas se juntan en «otras».</p></figcaption></figure>`;
+}
 function gruposHTML() {
   const fmtn = (x) => Math.round(x).toLocaleString("es-MX"), VARS = [...CAUSAS, "Bloqueos"], G = {}, a = new Array(9);
   for (let m = 0; m < 512; m++) {
@@ -1220,7 +1262,8 @@ function gruposHTML() {
     const j = VARS.indexOf(c), num = rows.reduce((t, r) => t + (r[0][j] === "1" ? r[1] : 0), 0);
     return `<li><b>${N[c].short}</b>: aparece en ${fmtn(num)} de los ${fmtn(T)} días → ${fmtn(num)} ÷ ${fmtn(T)} = <b>${(num / T * 100).toFixed(1)} %</b></li>`;
   }).join("");
-  return `<div class="steps-wrap"><table class="steps top5 grp"><thead>${head}</thead><tbody>${body}${otros}${total}</tbody></table></div>
+  return `<div class="venn venn-why" style="margin-bottom:6px">${arbolSitHTML(rows, T, VARS)}</div>
+  <details class="calc"><summary>Ver lo mismo como tabla</summary><div class="steps-wrap"><table class="steps top5 grp"><thead>${head}</thead><tbody>${body}${otros}${total}</tbody></table></div></details>
   <p style="font-size:13px;color:var(--muted)">Cada fila es una combinación de causas. Sus días salen de sumar, solo entre los días que coinciden con lo que marcaste (${marc}), todos los casos con esas causas. Las pistas que no marcaste se suman sin separarlas.</p>
   <p><b>3. Ese total es el que usa todo lo demás.</b> Los <b>${fmtn(T)}</b> días son los que quedan después de tirar los que contradicen lo que marcaste (${(T / 100).toFixed(1)} % de 10,000; es <b>P(B) = ${pe.toFixed(4)}</b>, el «círculo verde» de la sección 05). Ahora, para cada causa, suma solo las filas donde esa causa está en Sí y divídela entre el total:</p>
   <ul class="gl">${lineas}</ul>
@@ -1425,18 +1468,20 @@ function approxEq(b) {
 }
 function treeFig(nm, k) {
   const b = k.b, f = nfm, nB = k.nN, a1 = k.inter, a2 = Math.round((k.nA - k.inter) * 10) / 10, n1 = k.soloB, n2 = Math.round((nB - k.soloB) * 10) / 10;
-  const leaf = (y, keep, cnt, txt) => `<g><rect x="452" y="${y - 22}" width="178" height="44" rx="4" class="tl-${keep ? "keep" : "drop"}"/><text x="462" y="${y - 4}" class="tl-t">${txt}</text><text x="462" y="${y + 13}" class="tl-n${keep ? "" : " drop"}">${keep ? f(cnt) + " momentos" : f(cnt) + " · se tiran"}</text></g>`;
+  const leaf = (y, keep, cnt, lab) => `<g><rect x="500" y="${y - 24}" width="196" height="48" rx="4" class="tl-${keep ? "keep" : "drop"}"/><text x="510" y="${y - 6}" class="tl-t" font-weight="700">${lab}</text><text x="510" y="${y + 13}" class="tl-n${keep ? "" : " drop"}">${keep ? f(cnt) + " · se queda" : f(cnt) + " · se tiran"}</text></g>`;
   const br = (x1, y1, x2, y2, lab, ly, lx) => `<path d="M${x1},${y1} L${x2},${y2}" class="tl-l"/><text x="${lx}" y="${ly}" class="tl-p" text-anchor="middle">${lab}</text>`;
-  return `<figure class="tree"><figcaption class="tr-h"><h4>Lo mismo, como árbol de probabilidades</h4></figcaption><svg viewBox="0 0 640 270" role="img" aria-label="Árbol de probabilidades de ${nm}">
-    <text x="4" y="138" class="tl-t" font-weight="800">10,000</text>
-    ${br(52, 135, 160, 70, pc1(k.b.pA), 92, 92)}${br(52, 135, 160, 200, pc1(1 - k.b.pA), 182, 92)}
-    <text x="166" y="66" class="tl-t" font-weight="800">«${nm}»: Sí</text><text x="166" y="80" class="tl-n">${f(k.nA)} momentos</text>
-    <text x="166" y="196" class="tl-t" font-weight="800">«${nm}»: No</text><text x="166" y="210" class="tl-n">${f(k.nN)} momentos</text>
-    ${br(330, 66, 446, 35, pc1(b.pBA), 38, 388)}${br(330, 72, 446, 100, pc1(1 - b.pBA), 100, 388)}
-    ${br(330, 196, 446, 170, pc1(b.pBnA), 168, 388)}${br(330, 204, 446, 235, pc1(1 - b.pBnA), 236, 388)}
-    ${leaf(35, true, a1, "Lo marcaste: Sí")}${leaf(100, false, a2, "Lo marcaste: No")}${leaf(170, true, n1, "Lo marcaste: Sí")}${leaf(235, false, n2, "Lo marcaste: No")}
-  </svg><figcaption><p>Las ramas muestran qué parte del grupo sigue por cada camino. Solo se quedan las hojas verdes (donde pasa lo que marcaste); las grises se tiran porque lo contradicen.</p>
-  <p><b>P(A | B)</b> = hoja verde de arriba ÷ las dos hojas verdes = ${f(a1)} ÷ (${f(a1)} + ${f(n1)}) = ${f(a1)} ÷ ${f(k.tot)} = <b>${pc1(b.post)}</b>. Es el mismo resultado que con los círculos, dibujado como ramas.</p></figcaption></figure>`;
+  return `<figure class="tree"><figcaption class="tr-h"><h4>El árbol: la misma cuenta, rama por rama</h4>
+    <p class="tr-key"><span class="ka">A</span> = «${nm}» está presente &nbsp;·&nbsp; <span class="kb">B</span> = lo que marcaste (${evText()})</p></figcaption>
+  <svg viewBox="0 0 700 290" role="img" aria-label="Árbol de probabilidades de ${nm}">
+    <text x="4" y="150" class="tl-t" font-weight="800">10,000</text>
+    ${br(52, 147, 160, 76, "P(A) = " + pc1(k.b.pA), 96, 96)}${br(52, 147, 160, 216, "P(no A) = " + pc1(1 - k.b.pA), 200, 96)}
+    <text x="166" y="72" class="tl-t" font-weight="800"><tspan class="ka">A</tspan> «${nm}»: Sí</text><text x="166" y="87" class="tl-n">${f(k.nA)} momentos</text>
+    <text x="166" y="212" class="tl-t" font-weight="800"><tspan class="ka">no A</tspan> «${nm}»: No</text><text x="166" y="227" class="tl-n">${f(k.nN)} momentos</text>
+    ${br(352, 72, 494, 38, "P(B | A) = " + pc1(b.pBA), 44, 423)}${br(352, 78, 494, 112, "P(no B | A) = " + pc1(1 - b.pBA), 116, 423)}
+    ${br(352, 212, 494, 182, "P(B | no A) = " + pc1(b.pBnA), 184, 423)}${br(352, 218, 494, 252, "P(no B | no A) = " + pc1(1 - b.pBnA), 254, 423)}
+    ${leaf(38, true, a1, "A y B")}${leaf(112, false, a2, "A y no B")}${leaf(182, true, n1, "no A y B")}${leaf(252, false, n2, "no A y no B")}
+  </svg><figcaption><p>Cada rama es un porcentaje del grupo que viene de la rama anterior. Solo se quedan las hojas verdes (donde pasa <b>B</b>, lo que marcaste); las grises se tiran porque lo contradicen.</p>
+  <p><b>P(A | B)</b> = (hoja «A y B») ÷ (las dos hojas con B) = ${f(a1)} ÷ (${f(a1)} + ${f(n1)}) = ${f(a1)} ÷ ${f(k.tot)} = <b>${pc1(b.post)}</b>. Es el mismo resultado que con los círculos.</p></figcaption></figure>`;
 }
 function vennSrc(nm, k, isCause = true) {
   const b = k.b, f = nfm;
