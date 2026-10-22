@@ -365,6 +365,10 @@ table.ing small { color: var(--muted); display: block; }
 .subst { font-family: var(--f-mono); font-size: 13.5px; background: var(--mark); color: var(--mark-ink); padding: 7px 10px; overflow-wrap: anywhere; }
 .plain { line-height: 1.5; }
 .see { font-size: 13px; color: var(--muted); }
+.steps.top5 th, .steps.top5 td { text-align: center; padding: 5px 4px; font-size: 12px; }
+.steps.top5 th.mk, .steps.top5 td.mk { background: var(--mark); }
+.steps.top5 td.si { font-weight: 800; color: var(--si); }
+.steps.top5 td.no { color: var(--muted); }
 .steps tr.start td { background: var(--accent-soft); }
 .steps td.fnc { min-width: 230px; }
 .fn-line { font-family: var(--f-mono); font-size: 13px; }
@@ -1162,6 +1166,24 @@ function renderClues() {
   box.innerHTML = html;
 }
 
+function topCombos(e, n) {
+  const out = [], a = new Array(9);
+  for (let m = 0; m < 512; m++) {
+    for (let i = 0; i < 9; i++) a[i] = (m >> (8 - i)) & 1;
+    let ok = true; for (const k in e) if (a[IDX[k]] !== e[k]) { ok = false; break; }
+    if (ok) out.push({ p: joint(a), a: a.slice() });
+  }
+  return out.sort((x, y) => y.p - x.p).slice(0, n);
+}
+function momentosTop() {
+  const tops = topCombos(ev, 5), tot = pe, keys = Object.keys(ev), nAll = 512 / Math.pow(2, keys.length);
+  const free = ORDEN.filter((v) => ev[v] === undefined);
+  const head = `<tr><th>#</th>${ORDEN.map((v) => `<th class="${ev[v] !== undefined ? "mk" : ""}">${N[v].short}</th>`).join("")}<th>De 10,000</th><th>% del grupo</th></tr>`;
+  const body = tops.map((t, i) => `<tr><td>${i + 1}</td>${ORDEN.map((v) => `<td class="${ev[v] !== undefined ? "mk" : ""} ${t.a[IDX[v]] ? "si" : "no"}">${t.a[IDX[v]] ? "Sí" : "No"}</td>`).join("")}<td><b>${Math.round(t.p * 10000).toLocaleString("es-MX")}</b></td><td>${(t.p / tot * 100).toFixed(0)} %</td></tr>`).join("");
+  return `<p><b>¿Quién decide qué va en Sí y qué en No?</b> Nadie lo decide: la tabla de arriba muestra <u>un</u> momento de ejemplo, el más común de todos los que cumplen lo que marcaste. Lo que marcaste (${keys.map((k) => N[k].short.toLowerCase() + ": " + (ev[k] ? "Sí" : "No")).join(", ")}) es igual en todos; las otras ${free.length} variables pueden estar en Sí o en No, y cada combinación es un momento distinto (${nAll} en total, que suman ${Math.round(pe * 10000).toLocaleString("es-MX")} de 10,000). Para el ejemplo se tomó el que más veces ocurre. Aquí están los 5 más comunes, para que veas que no es «el único»:</p>
+  <div class="steps-wrap"><table class="steps top5"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+  <p style="font-size:13px;color:var(--muted)">Las columnas en amarillo son lo que marcaste (igual en todas las filas). Si todas las causas estuvieran en No, ese momento ocurriría en muy pocos casos, porque nada explicaría la pista que marcaste: por eso en los momentos más comunes siempre aparece alguna causa en Sí. Las causas pueden aparecer juntas: dos o más en Sí en la misma fila.</p>`;
+}
 function momentoTabla(a) {
   let run = 10000;
   const fmtn = (x) => Math.round(x).toLocaleString("es-MX");
@@ -1199,6 +1221,7 @@ function renderWhy() {
       <p><b>2. Calcula qué tan común es UN momento concreto.</b> <i>¿Para qué?</i> Porque la red no «ve» el servidor: solo sabe contar cuántos de los 10,000 momentos imaginarios se parecen a lo que marcaste. Para contarlos, primero mide qué tan común es cada momento posible. Lo hace así: arranca con los 10,000 momentos y cada dato del momento <u>recorta</u> el grupo, porque solo se queda la parte que cumple ese dato. Ejemplo con el momento más probable que coincide con lo que marcaste:</p>
       ${momentoTabla(tc.a)}
       <p style="font-size:13px;color:var(--muted);margin:4px 0"><span class="tg2 m" style="padding:0 6px;border-radius:8px">lo marcaste tú</span> = viene de lo que clicaste, no se elige. <span class="tg2 c" style="padding:0 6px;border-radius:8px">lo elige el cálculo</span> = lo que no marcaste puede estar en Sí o en No; el cálculo prueba todas las opciones y aquí se muestra la más probable.</p>
+      ${momentosTop()}
       <div class="ops">Quedan <b>${Math.round(tc.p * 10000).toLocaleString("es-MX")} de 10,000</b> (${tc.p.toFixed(5)}; el mismo resultado que multiplicar ${facs.map((f) => f.f.toFixed(2)).join(" × ")}).</div>
       <p><i>¿Y eso qué significa?</i> Que más o menos ${(tc.p * 100).toFixed(1)} de cada 100 momentos del servidor se ven exactamente así, con los 9 datos de la tabla. Por sí solo no responde nada: es una de las piezas que se suman en el paso 3. Se repite lo mismo con cada uno de los momentos que coinciden con lo que marcaste.</p>
       <p><b>3. Suma solo los momentos que coinciden con lo que ves.</b> De los 512 momentos, en ${nKeep} pasa justo lo que marcaste; los otros ${512 - nKeep} se descartan porque contradicen lo que ves. Al sumar las probabilidades de esos ${nKeep} momentos sale <b>P(B) = ${pe.toFixed(4)}</b>: lo que marcaste pasa en ${pc1(pe)} del tiempo.</p>
