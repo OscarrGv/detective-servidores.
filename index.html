@@ -254,7 +254,7 @@ table.cpt { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width
 .lab-h:first-child { margin-top: 4px; }
 .lab-h .n { font-family: var(--f-mono); font-size: 12px; background: var(--accent-soft); color: var(--accent); padding: 1px 7px; border-radius: 2px; }
 .lab-p { margin: 0 0 10px; color: var(--muted); font-size: 13.5px; max-width: 80ch; }
-.slider { display: grid; gap: 8px; border: 1.5px solid var(--hair); border-top: 5px solid var(--kc, var(--accent)); border-radius: var(--r); padding: 10px 12px 12px; background: var(--paper); }
+.slider { min-width: 0; display: grid; gap: 8px; border: 1.5px solid var(--hair); border-top: 5px solid var(--kc, var(--accent)); border-radius: var(--r); padding: 10px 12px 12px; background: var(--paper); }
 .slider .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .slider .ttl { font-weight: 700; font-size: 14px; line-height: 1.25; }
 .slider .big { font-family: var(--f-mono); font-weight: 700; font-size: 20px; color: var(--ink); background: color-mix(in srgb, var(--kc) 28%, white); padding: 1px 8px; border-radius: 3px; white-space: nowrap; }
@@ -263,7 +263,7 @@ table.cpt { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width
 .slider .pill { padding: 2px 8px; border-radius: 10px; background: var(--kc); color: #2b2b2b; }
 .slider .pill.out { background: var(--pista); }
 .slider .arr { font-size: 18px; line-height: 1; color: var(--muted); }
-.slider .wf { max-width: 300px; display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; }
+.slider .wf { max-width: 300px; width: 100%; display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 2px; }
 .slider .wf i { aspect-ratio: 1; border-radius: 2px; background: var(--hair); display: block; }
 .slider .wf i.on { background: var(--kc); }
 .slider .say { margin: 0; font-size: 13px; color: var(--ink); }
@@ -666,14 +666,15 @@ const HIJOS = {}; FLECHAS.forEach(([p, h]) => (HIJOS[p] = HIJOS[p] || []).push(h
 const desc = (v, acc = new Set()) => { (HIJOS[v] || []).forEach((h) => { acc.add(h); desc(h, acc); }); return acc; };
 
 // ============ 2. Probabilidades (valores del reporte) ============
-const DEFAULT = { prior: { CargaAlta: .25, IndicesFaltantes: .20, DiscoSaturado: .10, FallaRed: .05 }, nor: { i: .70, b: .60, d: .50 } };
+const DEFAULT = { prior: { CargaAlta: .25, IndicesFaltantes: .20, DiscoSaturado: .10, FallaRed: .05 }, nor: { i: .70, b: .60, d: .50 },
+  cpt: { bc: .40, bn: .05, cpuCI: .95, cpuC: .70, cpuI: .60, cpuN: .05, errRC: .95, errR: .90, errC: .30, errN: .02, alD: .90, alN: .03 } };
 let P = JSON.parse(JSON.stringify(DEFAULT));
 const round2 = (x) => Math.round(x * 100 + 1e-9) / 100;
 function pSi(v, a) { // P(v = Sí | padres) ; a = arreglo 0/1 en ORDEN
   const g = (k) => a[IDX[k]];
   switch (v) {
-    case "Bloqueos": return g("CargaAlta") ? .40 : .05;
-    case "CPUAlta": return g("CargaAlta") ? (g("IndicesFaltantes") ? .95 : .70) : (g("IndicesFaltantes") ? .60 : .05);
+    case "Bloqueos": return g("CargaAlta") ? P.cpt.bc : P.cpt.bn;
+    case "CPUAlta": return g("CargaAlta") ? (g("IndicesFaltantes") ? P.cpt.cpuCI : P.cpt.cpuC) : (g("IndicesFaltantes") ? P.cpt.cpuI : P.cpt.cpuN);
     case "ConsultasLentas": {
       let rap = .97;
       if (g("IndicesFaltantes")) rap *= 1 - P.nor.i;
@@ -681,8 +682,8 @@ function pSi(v, a) { // P(v = Sí | padres) ; a = arreglo 0/1 en ORDEN
       if (g("DiscoSaturado")) rap *= 1 - P.nor.d;
       return round2(1 - rap);
     }
-    case "ErroresConexion": return g("FallaRed") ? (g("CargaAlta") ? .95 : .90) : (g("CargaAlta") ? .30 : .02);
-    case "AlertaEspacio": return g("DiscoSaturado") ? .90 : .03;
+    case "ErroresConexion": return g("FallaRed") ? (g("CargaAlta") ? P.cpt.errRC : P.cpt.errR) : (g("CargaAlta") ? P.cpt.errC : P.cpt.errN);
+    case "AlertaEspacio": return g("DiscoSaturado") ? P.cpt.alD : P.cpt.alN;
     default: return P.prior[v];
   }
 }
@@ -905,16 +906,41 @@ function buildObs() {
       note: "Probabilidad inicial: antes de ver ninguna pista",
       say: (n) => `De cada 100 revisiones del servidor, en <b>${n}</b> ${CAUSA_FRASE[c]}.`,
       get: () => P.prior[c], set: (x) => (P.prior[c] = x) })),
-    { grp: 1, id: "nor-i", label: "Tablas sin índices", from: "Tablas sin índices", color: "var(--c1)", min: 5, max: 95, note: "Regla Noisy-OR",
+    { grp: 1, id: "nor-i", label: "Tablas sin índices", from: "Tablas sin índices", to: "Sistema lento", color: "var(--c1)", min: 5, max: 95, note: "Regla Noisy-OR",
       say: (n) => `Si faltan índices, el sistema se vuelve lento en <b>${n}</b> de cada 100 casos.`, get: () => P.nor.i, set: (x) => (P.nor.i = x) },
-    { grp: 1, id: "nor-b", label: "Operaciones en espera", from: "Operaciones en espera", color: "var(--inter)", min: 5, max: 95, note: "Regla Noisy-OR",
+    { grp: 1, id: "nor-b", label: "Operaciones en espera", from: "Operaciones en espera", to: "Sistema lento", color: "var(--inter)", min: 5, max: 95, note: "Regla Noisy-OR",
       say: (n) => `Si hay operaciones en espera, el sistema se vuelve lento en <b>${n}</b> de cada 100 casos.`, get: () => P.nor.b, set: (x) => (P.nor.b = x) },
-    { grp: 1, id: "nor-d", label: "Disco lleno o lento", from: "Disco lleno o lento", color: "var(--c2)", min: 5, max: 95, note: "Regla Noisy-OR",
+    { grp: 1, id: "nor-d", label: "Disco lleno o lento", from: "Disco lleno o lento", to: "Sistema lento", color: "var(--c2)", min: 5, max: 95, note: "Regla Noisy-OR",
       say: (n) => `Si el disco está mal, el sistema se vuelve lento en <b>${n}</b> de cada 100 casos.`, get: () => P.nor.d, set: (x) => (P.nor.d = x) },
+    { grp: 2, id: "cp-bc", label: 'Con muchos usuarios', from: 'Muchos usuarios', to: 'Operaciones en espera', color: "var(--c0)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Con muchos usuarios, aparecen operaciones en espera en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.bc, set: (x) => (P.cpt.bc = x) },
+    { grp: 2, id: "cp-bn", label: 'Sin muchos usuarios', from: 'Pocos usuarios', to: 'Operaciones en espera', color: "var(--c0)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Con pocos usuarios, aparecen operaciones en espera en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.bn, set: (x) => (P.cpt.bn = x) },
+    { grp: 2, id: "cp-cpuCI", label: 'Usuarios + sin índices', from: 'Usuarios + sin índices', to: 'Procesador al máximo', color: "var(--c1)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Con muchos usuarios y sin índices, el procesador llega al máximo en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.cpuCI, set: (x) => (P.cpt.cpuCI = x) },
+    { grp: 2, id: "cp-cpuC", label: 'Solo muchos usuarios', from: 'Solo usuarios', to: 'Procesador al máximo', color: "var(--c0)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Con solo muchos usuarios, el procesador llega al máximo en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.cpuC, set: (x) => (P.cpt.cpuC = x) },
+    { grp: 2, id: "cp-cpuI", label: 'Solo sin índices', from: 'Solo sin índices', to: 'Procesador al máximo', color: "var(--c1)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Con solo falta de índices, el procesador llega al máximo en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.cpuI, set: (x) => (P.cpt.cpuI = x) },
+    { grp: 2, id: "cp-cpuN", label: 'Ninguna de las dos', from: 'Ni usuarios ni índices', to: 'Procesador al máximo', color: "var(--hair)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Sin ninguna de las dos causas, el procesador llega al máximo (por otras razones) en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.cpuN, set: (x) => (P.cpt.cpuN = x) },
+    { grp: 2, id: "cp-errRC", label: 'Falla de red + muchos usuarios', from: 'Red + usuarios', to: 'Errores al conectarse', color: "var(--c3)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Con falla de red y muchos usuarios, hay errores al conectarse en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.errRC, set: (x) => (P.cpt.errRC = x) },
+    { grp: 2, id: "cp-errR", label: 'Solo falla de red', from: 'Falla de red', to: 'Errores al conectarse', color: "var(--c3)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Con solo falla de red, hay errores al conectarse en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.errR, set: (x) => (P.cpt.errR = x) },
+    { grp: 2, id: "cp-errC", label: 'Solo muchos usuarios', from: 'Muchos usuarios', to: 'Errores al conectarse', color: "var(--c0)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Con solo muchos usuarios, hay errores al conectarse en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.errC, set: (x) => (P.cpt.errC = x) },
+    { grp: 2, id: "cp-errN", label: 'Ninguna de las dos', from: 'Ni red ni usuarios', to: 'Errores al conectarse', color: "var(--hair)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Sin ninguna de las dos causas, hay errores al conectarse (por otras razones) en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.errN, set: (x) => (P.cpt.errN = x) },
+    { grp: 2, id: "cp-alD", label: 'Con el disco mal', from: 'Disco lleno o lento', to: 'Alerta de espacio', color: "var(--c2)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Con el disco mal, salta la alerta de espacio en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.alD, set: (x) => (P.cpt.alD = x) },
+    { grp: 2, id: "cp-alN", label: 'Con el disco bien', from: 'Disco sano', to: 'Alerta de espacio', color: "var(--c2)", min: 1, max: 99, note: "Tabla de probabilidad condicional",
+      say: (n) => `Con el disco sano, salta la alerta (falsa alarma) en <b>${n}</b> de cada 100 veces.`, get: () => P.cpt.alN, set: (x) => (P.cpt.alN = x) },
   ];
   const GR = [
     ["1", "¿Qué tan común es cada causa?", "Tú decides qué tan seguido pasa cada problema <u>antes</u> de mirar ninguna pista. Cada cuadrito es 1 de cada 100 revisiones del servidor: los de color son las veces que la causa está presente."],
-    ["2", "¿Cuánta lentitud provoca cada causa?", "Aquí decides qué tan seguido una causa logra volver lento el sistema. Es la flecha de color que sale de la causa hacia «Sistema lento» en el diagrama."],
+    ["2", "¿Cuánta lentitud provoca cada causa?", "Aquí decides qué tan seguido una causa logra volver lento el sistema. Es la flecha de color que sale de la causa hacia «Sistema lento» en el diagrama. Cambia la probabilidad de la <b>pista</b> «Sistema lento»."],
+    ["3", "¿Qué tan seguido aparece cada pista y cada espera?", "Son las probabilidades de las otras pistas (y de las operaciones en espera) según qué causas estén presentes. Cada tarjeta es una fila de su tabla: «si pasa esto, la pista aparece en N de cada 100 veces». Si subes una, esa pista pesa más como evidencia; si la bajas, la pista engaña menos o dice menos."],
   ];
   const holders = GR.map((g) => {
     const h = document.createElement("div");
@@ -923,7 +949,7 @@ function buildObs() {
   });
   sliders.forEach((s) => {
     const d = document.createElement("div"); d.className = "slider"; d.style.setProperty("--kc", s.color);
-    const flow = s.from ? `<div class="flow"><span class="pill">${s.from}</span><span class="arr">→</span><span class="pill out">Sistema lento</span></div>` : "";
+    const flow = s.from ? `<div class="flow"><span class="pill">${s.from}</span><span class="arr">→</span><span class="pill out">${s.to}</span></div>` : "";
     d.innerHTML = `<div class="top"><label class="ttl" for="${s.id}">${s.grp ? "" : "Qué tan común es: "}${s.label}</label><span class="big" id="${s.id}-v"></span></div>${flow}<div class="wf">${"<i></i>".repeat(100)}</div><input type="range" id="${s.id}" min="${s.min}" max="${s.max}" step="1"><p class="say"></p><small>${s.note}</small>`;
     holders[s.grp].appendChild(d);
     const inp = d.querySelector("input"), out = d.querySelector(".big"), say = d.querySelector(".say"), cells = d.querySelectorAll(".wf i");
