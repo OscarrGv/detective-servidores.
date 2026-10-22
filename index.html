@@ -417,6 +417,8 @@ table.ing small { color: var(--muted); display: block; }
 .vsrc li small { display: block; color: var(--muted); font-size: 12.5px; }
 .vsrc .mono { font-family: var(--f-mono); white-space: nowrap; }
 .venn-why { margin: 10px 0 4px; }
+.venn figure.tree, figure.tree { grid-column: 1 / -1; margin: 0; background: var(--paper); border: 1px solid var(--hair); padding: 10px 12px; }
+.tree .tr-h h4 { margin: 0 0 4px; font-size: 14.5px; }
 .tree-d { margin: 10px 0 4px; }
 .tree-d > summary { cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--accent); }
 .tree svg { width: 100%; max-width: 620px; height: auto; display: block; }
@@ -1267,6 +1269,8 @@ function renderWhy() {
         <div class="ops">Este momento: <b>${Math.round(tc.p * 10000).toLocaleString("es-MX")} de 10,000</b> (${tc.p.toFixed(5)} = ${facs.map((f) => f.f.toFixed(2)).join(" × ")}).</div>
         ${momentosTop()}
       </details>
+      <p><b>Lo mismo, como árbol.</b> Estos tres datos son las ramas de este árbol (ejemplo con «${N[top].short}»): P(A) es la primera rama, P(B | A) la rama de arriba y P(B | no A) la de abajo.</p>
+      <div class="venn venn-why">${treeFig(N[top].short, countsOf(top))}</div>
       <p>Para <b>P(B | A)</b> se suman solo los momentos que, además, tienen la causa, y el resultado se divide entre P(A). Por ejemplo, con «${N[top].short}»: los momentos con la causa y con lo que marcaste suman ${pAB.toFixed(4)}, y ${pAB.toFixed(4)} ÷ ${bt.pA.toFixed(3)} = <b>${bt.pBA.toFixed(3)}</b>. Ese es el ${pc1(bt.pBA)} que aparece en su cuenta.</p>
       <p class="why4"><b>¿Para qué sirve saber esto?</b> Para comprobar que ningún porcentaje de la página es inventado: todos salen solo de los números del reporte (secciones 7 y 8). Si cambias uno de esos números en el Laboratorio (sección 08), todas las cuentas cambian a partir de él. Es lo mismo que hace la función <code>calcular_a_mano()</code> del programa.</p>
     </div></details>`;
@@ -1423,7 +1427,7 @@ function treeFig(nm, k) {
   const b = k.b, f = nfm, nB = k.nN, a1 = k.inter, a2 = Math.round((k.nA - k.inter) * 10) / 10, n1 = k.soloB, n2 = Math.round((nB - k.soloB) * 10) / 10;
   const leaf = (y, keep, cnt, txt) => `<g><rect x="452" y="${y - 22}" width="178" height="44" rx="4" class="tl-${keep ? "keep" : "drop"}"/><text x="462" y="${y - 4}" class="tl-t">${txt}</text><text x="462" y="${y + 13}" class="tl-n${keep ? "" : " drop"}">${keep ? f(cnt) + " momentos" : f(cnt) + " · se tiran"}</text></g>`;
   const br = (x1, y1, x2, y2, lab, ly, lx) => `<path d="M${x1},${y1} L${x2},${y2}" class="tl-l"/><text x="${lx}" y="${ly}" class="tl-p" text-anchor="middle">${lab}</text>`;
-  return `<figure class="tree"><svg viewBox="0 0 640 270" role="img" aria-label="Árbol de probabilidades de ${nm}">
+  return `<figure class="tree"><figcaption class="tr-h"><h4>Lo mismo, como árbol de probabilidades</h4></figcaption><svg viewBox="0 0 640 270" role="img" aria-label="Árbol de probabilidades de ${nm}">
     <text x="4" y="138" class="tl-t" font-weight="800">10,000</text>
     ${br(52, 135, 160, 70, pc1(k.b.pA), 92, 92)}${br(52, 135, 160, 200, pc1(1 - k.b.pA), 182, 92)}
     <text x="166" y="66" class="tl-t" font-weight="800">«${nm}»: Sí</text><text x="166" y="80" class="tl-n">${f(k.nA)} momentos</text>
@@ -1436,7 +1440,7 @@ function treeFig(nm, k) {
 }
 function vennSrc(nm, k, isCause = true) {
   const b = k.b, f = nfm;
-  return `<details class="tree-d"><summary>Ver lo mismo como árbol de probabilidades</summary>${treeFig(nm, k)}</details>\n  <div class="vsrc"><p><b>¿De dónde salen estos números?</b> Los porcentajes se convierten en momentos: se multiplica el porcentaje por el grupo del que se habla (por ejemplo, 25 % de 10,000 = 2,500).</p><ol>
+  return `${treeFig(nm, k)}\n  <div class="vsrc"><p><b>¿De dónde salen estos números?</b> Los porcentajes se convierten en momentos: se multiplica el porcentaje por el grupo del que se habla (por ejemplo, 25 % de 10,000 = 2,500).</p><ol>
     <li><b>${f(k.nA)}</b> momentos con «${nm}» = <span class="mono">10,000 × ${pc1(b.pA)}</span><small>${isCause ? "P(A): qué tan común es la causa al inicio (sección 7 del reporte)." : `P(A): qué tan seguido pasa «${nm}» en general, sin marcar nada. La red lo calcula con las tablas del reporte.`}</small></li>
     <li><b>${f(k.inter)}</b> de ellos tienen además lo que marcaste = <span class="mono">${f(k.nA)} × ${pc1(b.pBA)}</span><small>P(B | A): cuando está «${nm}», qué tan seguido pasa lo que marcaste.</small></li>
     <li><b>${f(k.soloB)}</b> momentos tienen lo que marcaste sin «${nm}» = <span class="mono">${f(k.nN)} × ${pc1(b.pBnA)}</span><small>P(B | no A): sin «${nm}», qué tan seguido pasa de todos modos (por otras razones).</small></li>
